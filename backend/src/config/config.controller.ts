@@ -26,7 +26,7 @@ const TABLES: Partial<Record<string, ConfigTable>> = {
 @Controller('config')
 @UseGuards(TazamaAuthGuard)
 export class ConfigController {
-  constructor(private readonly configProxyService: ConfigProxyService) {}
+  constructor(private readonly configProxyService: ConfigProxyService) { }
 
   /**
    * List records for a table (paginated)
@@ -93,6 +93,28 @@ export class ConfigController {
     return await this.configProxyService.update(
       table,
       id,
+      cfg,
+      body,
+      user.token.tokenString,
+      user.tenantId,
+    );
+  }
+
+  /**
+   * Update a network map by cfg (single-key table)
+   * PUT /config/network-map/:cfg
+   */
+  @Put('network-map/:cfg')
+  async updateNetworkMap(
+    @Param('cfg') cfg: string,
+    @Body() body: unknown,
+    @User() user: AuthenticatedUser,
+  ): Promise<unknown> {
+    const table = this.resolveTable('network-map');
+    // For single-key tables the id path segment is not used by the proxy service.
+    return await this.configProxyService.update(
+      table,
+      '',
       cfg,
       body,
       user.token.tokenString,

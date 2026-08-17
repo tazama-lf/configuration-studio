@@ -1,10 +1,5 @@
 import { HttpService } from '@nestjs/axios';
-import {
-  HttpException,
-  HttpStatus,
-  Injectable,
-  Logger,
-} from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 
@@ -96,9 +91,9 @@ export class AdminServiceClient {
       // Pass through the status code from admin-service
       const message =
         data &&
-        typeof data === 'object' &&
-        'message' in data &&
-        typeof data.message === 'string'
+          typeof data === 'object' &&
+          'message' in data &&
+          typeof data.message === 'string'
           ? data.message
           : 'Admin service returned an error response';
 

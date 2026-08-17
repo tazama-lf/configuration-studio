@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Box,
   Button,
@@ -13,28 +13,23 @@ import {
   FormControlLabel,
   Tooltip,
   Divider,
-} from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
-import ViewIcon from '@mui/icons-material/Visibility';
-import ActivateIcon from '@mui/icons-material/CheckCircle';
-import DeactivateIcon from '@mui/icons-material/Stop';
-import ReloadIcon from '@mui/icons-material/Refresh';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
-import {
-  Menu,
-  MenuItem,
-  ListItemIcon,
-  ListItemText,
-} from '@mui/material';
-import type { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
-import CustomTable from '../../../common/Tables/CustomTable';
-import Loader from '../../../shared/components/ui/Loader';
-import { useToast } from '../../../shared/providers/ToastProvider';
-import { useAuth } from '../../auth/contexts/AuthContext';
-import { configApi, type PaginatedResponse } from '../services/configApi';
-import NetworkMapConfigEditor from '../components/NetworkMapConfigEditor';
+} from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import ViewIcon from "@mui/icons-material/Visibility";
+import ActivateIcon from "@mui/icons-material/CheckCircle";
+import DeactivateIcon from "@mui/icons-material/Stop";
+import ReloadIcon from "@mui/icons-material/Refresh";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import { Menu, MenuItem, ListItemIcon, ListItemText } from "@mui/material";
+import type { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
+import CustomTable from "../../../common/Tables/CustomTable";
+import Loader from "../../../shared/components/ui/Loader";
+import { useToast } from "../../../shared/providers/ToastProvider";
+import { useAuth } from "../../auth/contexts/AuthContext";
+import { configApi, type PaginatedResponse } from "../services/configApi";
+import NetworkMapConfigEditor from "../components/NetworkMapConfigEditor";
 
 interface NetworkMapRecord {
   cfg: string;
@@ -51,14 +46,14 @@ const PAGE_LIMIT = 20;
 const NetworkMapPage: React.FC = () => {
   const { showSuccess, showError } = useToast();
   const { user } = useAuth();
-  const tenantId = user?.tenantId ?? 'DEFAULT';
+  const tenantId = user?.tenantId ?? "DEFAULT";
   const [records, setRecords] = useState<NetworkMapRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(0);
   const [totalRecords, setTotalRecords] = useState(0);
 
   // Dialog state
-  const [dialogMode, setDialogMode] = useState<'create' | 'edit' | 'view'>('create');
+  const [dialogMode, setDialogMode] = useState<"create" | "edit" | "view">("create");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<NetworkMapRecord | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -74,23 +69,28 @@ const NetworkMapPage: React.FC = () => {
 
   // Form fields
   const [formData, setFormData] = useState({
-    cfg: '1.0.0',
+    cfg: "1.0.0",
     active: true,
-    messages: '[]',
-    tenantId: 'DEFAULT',
+    messages: "[]",
+    tenantId: "DEFAULT",
   });
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await configApi.list<NetworkMapRecord>('network_map', {
+      const result = await configApi.list<NetworkMapRecord>("network_map", {
         limit: PAGE_LIMIT,
         offset: page * PAGE_LIMIT,
       });
-      setRecords(result.data.map((r, idx) => ({ ...r, __rowId: `${r.cfg}-${idx}` } as NetworkMapRecord & { __rowId: string })));
+      setRecords(
+        result.data.map(
+          (r, idx) =>
+            ({ ...r, __rowId: `${r.cfg}-${idx}` }) as NetworkMapRecord & { __rowId: string },
+        ),
+      );
       setTotalRecords(result.meta.total);
     } catch (err) {
-      showError('Failed to load network maps', err instanceof Error ? err.message : undefined);
+      showError("Failed to load network maps", err instanceof Error ? err.message : undefined);
     } finally {
       setLoading(false);
     }
@@ -101,30 +101,36 @@ const NetworkMapPage: React.FC = () => {
   }, [fetchData]);
 
   const handleCreateClick = () => {
-    setDialogMode('create');
-    setFormData({ cfg: '1.0.0', active: true, messages: '[]', tenantId });
+    setDialogMode("create");
+    setFormData({ cfg: "1.0.0", active: true, messages: "[]", tenantId });
     setDialogOpen(true);
   };
 
   const handleEditClick = (record: NetworkMapRecord) => {
-    setDialogMode('edit');
+    setDialogMode("edit");
     setSelectedRecord(record);
     setFormData({
       cfg: record.cfg,
       active: record.active,
-      messages: typeof record.messages === 'string' ? record.messages : JSON.stringify(record.messages ?? [], null, 2),
+      messages:
+        typeof record.messages === "string"
+          ? record.messages
+          : JSON.stringify(record.messages ?? [], null, 2),
       tenantId: record.tenantId ?? tenantId,
     });
     setDialogOpen(true);
   };
 
   const handleViewClick = (record: NetworkMapRecord) => {
-    setDialogMode('view');
+    setDialogMode("view");
     setSelectedRecord(record);
     setFormData({
       cfg: record.cfg,
       active: record.active,
-      messages: typeof record.messages === 'string' ? record.messages : JSON.stringify(record.messages ?? [], null, 2),
+      messages:
+        typeof record.messages === "string"
+          ? record.messages
+          : JSON.stringify(record.messages ?? [], null, 2),
       tenantId: record.tenantId ?? tenantId,
     });
     setDialogOpen(true);
@@ -139,7 +145,7 @@ const NetworkMapPage: React.FC = () => {
     const activeMap = records.find((r) => r.active);
     if (activeMap && activeMap.cfg !== record.cfg) {
       showError(
-        'Failed to activate network map',
+        "Failed to activate network map",
         `Network map ${activeMap.cfg} is already active. Deactivate it first.`,
       );
       return;
@@ -147,11 +153,11 @@ const NetworkMapPage: React.FC = () => {
     setActionLoading(true);
     setActionMenuAnchor(null);
     try {
-      await configApi.activateNetworkMap(record.cfg, 'broadcast');
+      await configApi.activateNetworkMap(record.cfg, "broadcast");
       showSuccess(`Network map ${record.cfg} activated successfully`);
       fetchData();
     } catch (err) {
-      showError('Failed to activate network map', err instanceof Error ? err.message : undefined);
+      showError("Failed to activate network map", err instanceof Error ? err.message : undefined);
     } finally {
       setActionLoading(false);
     }
@@ -165,13 +171,13 @@ const NetworkMapPage: React.FC = () => {
       showSuccess(`Network map ${record.cfg} deactivated successfully`);
       fetchData();
     } catch (err) {
-      showError('Failed to deactivate network map', err instanceof Error ? err.message : undefined);
+      showError("Failed to deactivate network map", err instanceof Error ? err.message : undefined);
     } finally {
       setActionLoading(false);
     }
   };
 
-  const handleReload = async (mode: 'broadcast' | 'cascade') => {
+  const handleReload = async (mode: "broadcast" | "cascade") => {
     setActionLoading(true);
     setReloadDialogOpen(false);
     try {
@@ -179,7 +185,7 @@ const NetworkMapPage: React.FC = () => {
       showSuccess(`Network map reloaded (${mode} mode)`);
       fetchData();
     } catch (err) {
-      showError('Failed to reload network map', err instanceof Error ? err.message : undefined);
+      showError("Failed to reload network map", err instanceof Error ? err.message : undefined);
     } finally {
       setActionLoading(false);
     }
@@ -187,14 +193,23 @@ const NetworkMapPage: React.FC = () => {
 
   const handleSave = async () => {
     if (!formData.cfg.trim()) {
-      showError('Validation error', 'Config Version is required');
+      showError("Validation error", "Config Version is required");
       return;
     }
     let parsedMessages: unknown = [];
     try {
-      parsedMessages = JSON.parse(formData.messages || '[]');
+      parsedMessages = JSON.parse(formData.messages || "[]");
     } catch {
-      showError('Validation error', 'Messages must be valid JSON');
+      showError("Validation error", "Messages must be valid JSON");
+      return;
+    }
+    // Ensure messages is a JSON array — a common user mistake is pasting
+    // a single object (for example a user record) instead of an array.
+    if (!Array.isArray(parsedMessages)) {
+      showError(
+        "Validation error",
+        "Messages must be a JSON array (e.g. [] or [{ id: 'x', cfg: '1.0.0', ... }])",
+      );
       return;
     }
     setActionLoading(true);
@@ -205,17 +220,17 @@ const NetworkMapPage: React.FC = () => {
         messages: parsedMessages,
         tenantId,
       };
-      if (dialogMode === 'create') {
-        await configApi.create('network_map', payload);
-        showSuccess('Network map created successfully');
-      } else if (dialogMode === 'edit' && selectedRecord) {
-        await configApi.update('network_map', '', selectedRecord.cfg, payload);
-        showSuccess('Network map updated successfully');
+      if (dialogMode === "create") {
+        await configApi.create("network_map", payload);
+        showSuccess("Network map created successfully");
+      } else if (dialogMode === "edit" && selectedRecord) {
+        await configApi.update("network_map", "", selectedRecord.cfg, payload);
+        showSuccess("Network map updated successfully");
       }
       setDialogOpen(false);
       fetchData();
     } catch (err) {
-      showError('Failed to save network map', err instanceof Error ? err.message : undefined);
+      showError("Failed to save network map", err instanceof Error ? err.message : undefined);
     } finally {
       setActionLoading(false);
     }
@@ -225,48 +240,74 @@ const NetworkMapPage: React.FC = () => {
     if (!recordToDelete) return;
     setActionLoading(true);
     try {
-      await configApi.delete('network_map', '', recordToDelete.cfg);
-      showSuccess('Network map deleted successfully');
+      await configApi.delete("network_map", "", recordToDelete.cfg);
+      showSuccess("Network map deleted successfully");
       setDeleteDialogOpen(false);
       setRecordToDelete(null);
       fetchData();
     } catch (err) {
-      showError('Failed to delete network map', err instanceof Error ? err.message : undefined);
+      showError("Failed to delete network map", err instanceof Error ? err.message : undefined);
     } finally {
       setActionLoading(false);
     }
   };
 
-  const isReadOnly = dialogMode === 'view';
+  const isReadOnly = dialogMode === "view";
 
   const columns: GridColDef[] = [
-    { field: 'cfg', headerName: 'Config Version', width: 130 },
+    { field: "cfg", headerName: "Config Version", width: 130 },
     {
-      field: 'active',
-      headerName: 'Active',
+      field: "active",
+      headerName: "Active",
       width: 100,
       renderCell: (params: GridRenderCellParams) => (
-        <span style={{ color: params.value ? '#10b981' : '#ef4444', fontWeight: 600 }}>
-          {params.value ? 'Yes' : 'No'}
+        <span style={{ color: params.value ? "#10b981" : "#ef4444", fontWeight: 600 }}>
+          {params.value ? "Yes" : "No"}
         </span>
       ),
     },
-    { field: 'messages', headerName: 'Messages', flex: 1, minWidth: 150, renderCell: (params: GridRenderCellParams) => {
-      const val = params.value;
-      if (Array.isArray(val)) return `${val.length} message(s)`;
-      return typeof val === 'string' ? val : '';
-    }},
-    { field: 'creDtTm', headerName: 'Created At', width: 180, type: 'string', valueFormatter: (value: unknown) => { if (!value) return ''; const d = new Date(value as string); return isNaN(d.getTime()) ? String(value) : d.toLocaleString(); } },
-    { field: 'updDtTm', headerName: 'Updated At', width: 180, type: 'string', valueFormatter: (value: unknown) => { if (!value) return ''; const d = new Date(value as string); return isNaN(d.getTime()) ? String(value) : d.toLocaleString(); } },
     {
-      field: 'actions',
-      headerName: 'Actions',
+      field: "messages",
+      headerName: "Messages",
+      flex: 1,
+      minWidth: 150,
+      renderCell: (params: GridRenderCellParams) => {
+        const val = params.value;
+        if (Array.isArray(val)) return `${val.length} message(s)`;
+        return typeof val === "string" ? val : "";
+      },
+    },
+    {
+      field: "creDtTm",
+      headerName: "Created At",
+      width: 180,
+      type: "string",
+      valueFormatter: (value: unknown) => {
+        if (!value) return "";
+        const d = new Date(value as string);
+        return isNaN(d.getTime()) ? String(value) : d.toLocaleString();
+      },
+    },
+    {
+      field: "updDtTm",
+      headerName: "Updated At",
+      width: 180,
+      type: "string",
+      valueFormatter: (value: unknown) => {
+        if (!value) return "";
+        const d = new Date(value as string);
+        return isNaN(d.getTime()) ? String(value) : d.toLocaleString();
+      },
+    },
+    {
+      field: "actions",
+      headerName: "Actions",
       width: 200,
       sortable: false,
       renderCell: (params: GridRenderCellParams) => {
         const record = params.row as NetworkMapRecord;
         return (
-          <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+          <Box sx={{ display: "flex", gap: 0.5, alignItems: "center" }}>
             <Tooltip title="View">
               <IconButton size="small" onClick={() => handleViewClick(record)}>
                 <ViewIcon fontSize="small" />
@@ -303,16 +344,16 @@ const NetworkMapPage: React.FC = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h5" sx={{ fontWeight: 600, color: '#374151' }}>
+      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+        <Typography variant="h5" sx={{ fontWeight: 600, color: "#374151" }}>
           Network Map Configuration
         </Typography>
-        <Box sx={{ display: 'flex', gap: 1 }}>
+        <Box sx={{ display: "flex", gap: 1 }}>
           <Button
             variant="outlined"
             startIcon={<ReloadIcon />}
             onClick={() => setReloadDialogOpen(true)}
-            sx={{ borderColor: '#6b7280', color: '#374151' }}
+            sx={{ borderColor: "#6b7280", color: "#374151" }}
           >
             Reload
           </Button>
@@ -320,7 +361,7 @@ const NetworkMapPage: React.FC = () => {
             variant="contained"
             startIcon={<AddIcon />}
             onClick={handleCreateClick}
-            sx={{ backgroundColor: '#3b82f6', '&:hover': { backgroundColor: '#2563eb' } }}
+            sx={{ backgroundColor: "#3b82f6", "&:hover": { backgroundColor: "#2563eb" } }}
           >
             Create New
           </Button>
@@ -342,7 +383,7 @@ const NetworkMapPage: React.FC = () => {
           }}
           initialState={{
             sorting: {
-              sortModel: [{ field: 'updDtTm', sort: 'desc' }],
+              sortModel: [{ field: "updDtTm", sort: "desc" }],
             },
           }}
         />
@@ -351,18 +392,22 @@ const NetworkMapPage: React.FC = () => {
       {/* Create / Edit / View Dialog */}
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="lg" fullWidth>
         <DialogTitle>
-          {dialogMode === 'create' ? 'Create Network Map' : dialogMode === 'edit' ? 'Edit Network Map' : 'View Network Map'}
+          {dialogMode === "create"
+            ? "Create Network Map"
+            : dialogMode === "edit"
+              ? "Edit Network Map"
+              : "View Network Map"}
         </DialogTitle>
         <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
             <TextField
               label="Config Version"
               value={formData.cfg}
               onChange={(e) => setFormData({ ...formData, cfg: e.target.value })}
-              disabled={isReadOnly || dialogMode === 'edit'}
+              disabled={isReadOnly || dialogMode === "edit"}
               required
               fullWidth
-              helperText={dialogMode === 'edit' ? 'Config version cannot be changed' : undefined}
+              helperText={dialogMode === "edit" ? "Config version cannot be changed" : undefined}
             />
             <FormControlLabel
               control={
@@ -376,7 +421,7 @@ const NetworkMapPage: React.FC = () => {
             />
             <Divider />
             <NetworkMapConfigEditor
-              key={`${dialogMode}-${selectedRecord?.cfg ?? 'new'}`}
+              key={`${dialogMode}-${selectedRecord?.cfg ?? "new"}`}
               value={formData.messages}
               onChange={(json) => setFormData({ ...formData, messages: json })}
               readOnly={isReadOnly}
@@ -387,56 +432,68 @@ const NetworkMapPage: React.FC = () => {
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDialogOpen(false)}>
-            {isReadOnly ? 'Close' : 'Cancel'}
-          </Button>
+          <Button onClick={() => setDialogOpen(false)}>{isReadOnly ? "Close" : "Cancel"}</Button>
           {!isReadOnly && (
             <Button variant="contained" onClick={handleSave} disabled={actionLoading}>
-              {dialogMode === 'create' ? 'Create' : 'Save'}
+              {dialogMode === "create" ? "Create" : "Save"}
             </Button>
           )}
         </DialogActions>
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)} maxWidth="xs" fullWidth>
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
         <DialogTitle>Confirm Delete</DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to delete the network map with config version{' '}
-            <strong>{recordToDelete?.cfg}</strong>?
-            This action cannot be undone.
+            Are you sure you want to delete the network map with config version{" "}
+            <strong>{recordToDelete?.cfg}</strong>? This action cannot be undone.
           </Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
-          <Button variant="contained" color="error" onClick={handleDeleteConfirm} disabled={actionLoading}>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleDeleteConfirm}
+            disabled={actionLoading}
+          >
             Delete
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Reload Mode Dialog */}
-      <Dialog open={reloadDialogOpen} onClose={() => setReloadDialogOpen(false)} maxWidth="xs" fullWidth>
+      <Dialog
+        open={reloadDialogOpen}
+        onClose={() => setReloadDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
         <DialogTitle>Reload Network Map</DialogTitle>
         <DialogContent>
           <Typography sx={{ mb: 2 }}>
             Choose a reload mode to re-dispatch the active network map:
           </Typography>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
             <Button
               variant="outlined"
               startIcon={<ReloadIcon />}
-              onClick={() => handleReload('broadcast')}
-              sx={{ justifyContent: 'flex-start' }}
+              onClick={() => handleReload("broadcast")}
+              sx={{ justifyContent: "flex-start" }}
             >
               Broadcast — Notify all service channels
             </Button>
             <Button
               variant="outlined"
               startIcon={<ReloadIcon />}
-              onClick={() => handleReload('cascade')}
-              sx={{ justifyContent: 'flex-start' }}
+              onClick={() => handleReload("cascade")}
+              sx={{ justifyContent: "flex-start" }}
             >
               Cascade — Propagate to dependent services
             </Button>

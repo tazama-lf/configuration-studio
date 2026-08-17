@@ -7,7 +7,7 @@ export type ConfigTable = 'network_map' | 'rule' | 'typology';
 export class ConfigProxyService {
   private readonly logger = new Logger(ConfigProxyService.name);
 
-  constructor(private readonly adminServiceClient: AdminServiceClient) {}
+  constructor(private readonly adminServiceClient: AdminServiceClient) { }
 
   /**
    * List records from a config table (paginated)
@@ -134,7 +134,7 @@ export class ConfigProxyService {
   ): Promise<unknown> {
     const path = `/v1/admin/configuration/network_map/${encodeURIComponent(cfg)}/deactivate`;
     this.logger.log(`Deactivating network_map ${cfg}${tenantId ? ` [tenant: ${tenantId}]` : ''}`);
-    return await this.adminServiceClient.executeHttpRequest('POST', path, token, tenantId, {});
+    return await this.adminServiceClient.executeHttpRequest('POST', path, token, tenantId);
   }
 
   /**
