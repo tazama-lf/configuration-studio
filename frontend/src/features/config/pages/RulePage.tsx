@@ -23,7 +23,8 @@ import { useToast } from '../../../shared/providers/ToastProvider';
 import { useAuth } from '../../auth/contexts/AuthContext';
 import { configApi } from '../services/configApi';
 import RuleConfigEditor from '../components/RuleConfigEditor';
-import { sanitizeId } from '../../../utils/validation';
+import { sanitizeId, isValidConfigVersion } from '../../../utils/validation';
+import { MAX_ID_LENGTH, MAX_CONFIG_VERSION_LENGTH, MAX_DESCRIPTION_LENGTH } from '../../../utils/constants';
 
 interface RuleRecord {
   id: string;
@@ -42,7 +43,6 @@ interface RuleRecord {
 }
 
 const PAGE_LIMIT = 20;
-const CONFIG_VERSION_PATTERN = /^\d+(?:\.\d+)*$/;
 
 const RulePage: React.FC = () => {
   const { showSuccess, showError } = useToast();
@@ -137,7 +137,7 @@ const RulePage: React.FC = () => {
       showError('Validation error', 'Config Version is required');
       return;
     }
-    if (!CONFIG_VERSION_PATTERN.test(formData.cfg)) {
+    if (!isValidConfigVersion(formData.cfg)) {
       showError('Validation error', 'Config Version must contain only digits and dots (e.g. 1.0.0)');
       return;
     }
@@ -208,7 +208,7 @@ const RulePage: React.FC = () => {
   };
 
   const isReadOnly = dialogMode === 'view';
-  const cfgInvalid = formData.cfg.length > 0 && !CONFIG_VERSION_PATTERN.test(formData.cfg);
+  const cfgInvalid = formData.cfg.length > 0 && !isValidConfigVersion(formData.cfg);
 
   const renderTruncatedCell = (text: string) => (
     <Tooltip title={text} disableHoverListener={!text}>
@@ -342,6 +342,7 @@ const RulePage: React.FC = () => {
               disabled={isReadOnly || dialogMode === 'edit'}
               required
               fullWidth
+              slotProps={{ htmlInput: { maxLength: MAX_ID_LENGTH } }}
               InputLabelProps={{ shrink: true }}
               helperText={
                 dialogMode === 'edit'
@@ -378,6 +379,7 @@ const RulePage: React.FC = () => {
                     ? 'Config Version must contain only digits and dots (e.g. 1.0.0)'
                     : undefined
               }
+              slotProps={{ htmlInput: { maxLength: MAX_CONFIG_VERSION_LENGTH } }}
               InputLabelProps={{ shrink: true }}
             />
             <TextField
@@ -388,6 +390,7 @@ const RulePage: React.FC = () => {
               disabled={isReadOnly}
               required
               fullWidth
+              slotProps={{ htmlInput: { maxLength: MAX_DESCRIPTION_LENGTH } }}
               InputLabelProps={{ shrink: true }}
             />
             <RuleConfigEditor

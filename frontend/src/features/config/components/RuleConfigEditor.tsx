@@ -14,6 +14,7 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { sanitizeId } from '../../../utils/validation';
+import { MAX_ID_LENGTH, MAX_REASON_LENGTH, MAX_SHORT_VALUE_LENGTH } from '../../../utils/constants';
 
 // ── Known parameter keys (from Tazama rule configurations) ────────────────
 
@@ -378,6 +379,7 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
               value={ec.subRuleRef}
               onChange={(e) => updateExitCondition(idx, 'subRuleRef', sanitizeId(e.target.value))}
               disabled={readOnly}
+              slotProps={{ htmlInput: { maxLength: MAX_ID_LENGTH } }}
               InputLabelProps={{ shrink: true }}
               sx={{ flex: 1 }}
             />
@@ -388,6 +390,7 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
               value={ec.reason}
               onChange={(e) => updateExitCondition(idx, 'reason', e.target.value)}
               disabled={readOnly}
+              slotProps={{ htmlInput: { maxLength: MAX_REASON_LENGTH } }}
               InputLabelProps={{ shrink: true }}
               sx={{ flex: 2 }}
             />
@@ -441,6 +444,7 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
               value={(tf.days ?? []).join(',')}
               onChange={(e) => updateTimeframe(idx, 'days', e.target.value.split(',').map((d) => d.trim()).filter(Boolean))}
               disabled={readOnly}
+              slotProps={{ htmlInput: { maxLength: MAX_SHORT_VALUE_LENGTH } }}
               InputLabelProps={{ shrink: true }}
               sx={{ flex: 2, minWidth: 200 }}
             />
@@ -475,6 +479,7 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
                 value={b.subRuleRef}
                 onChange={(e) => updateBand(idx, 'subRuleRef', sanitizeId(e.target.value))}
                 disabled={readOnly}
+                slotProps={{ htmlInput: { maxLength: MAX_ID_LENGTH } }}
                 InputLabelProps={{ shrink: true }}
                 sx={{ flex: 1, minWidth: 120 }}
               />
@@ -485,6 +490,7 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
                 value={b.reason}
                 onChange={(e) => updateBand(idx, 'reason', e.target.value)}
                 disabled={readOnly}
+                slotProps={{ htmlInput: { maxLength: MAX_REASON_LENGTH } }}
                 InputLabelProps={{ shrink: true }}
                 sx={{ flex: 2, minWidth: 200 }}
               />
@@ -542,6 +548,7 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
                 value={ce.subRuleRef}
                 onChange={(e) => updateCaseExpression(idx, 'subRuleRef', sanitizeId(e.target.value))}
                 disabled={readOnly}
+                slotProps={{ htmlInput: { maxLength: MAX_ID_LENGTH } }}
                 InputLabelProps={{ shrink: true }}
                 sx={{ flex: 1, minWidth: 120 }}
               />
@@ -552,6 +559,7 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
                 value={ce.value}
                 onChange={(e) => updateCaseExpression(idx, 'value', e.target.value)}
                 disabled={readOnly}
+                slotProps={{ htmlInput: { maxLength: MAX_SHORT_VALUE_LENGTH } }}
                 InputLabelProps={{ shrink: true }}
                 sx={{ flex: 1, minWidth: 100 }}
               />
@@ -562,6 +570,7 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
                 value={ce.reason}
                 onChange={(e) => updateCaseExpression(idx, 'reason', e.target.value)}
                 disabled={readOnly}
+                slotProps={{ htmlInput: { maxLength: MAX_REASON_LENGTH } }}
                 InputLabelProps={{ shrink: true }}
                 sx={{ flex: 2, minWidth: 200 }}
               />
@@ -592,6 +601,7 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
               value={caseAlternative.subRuleRef}
               onChange={(e) => setCaseAlternative({ ...caseAlternative, subRuleRef: sanitizeId(e.target.value) })}
               disabled={readOnly}
+              slotProps={{ htmlInput: { maxLength: MAX_ID_LENGTH } }}
               InputLabelProps={{ shrink: true }}
               sx={{ flex: 1 }}
             />
@@ -602,6 +612,7 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
               value={caseAlternative.reason}
               onChange={(e) => setCaseAlternative({ ...caseAlternative, reason: e.target.value })}
               disabled={readOnly}
+              slotProps={{ htmlInput: { maxLength: MAX_REASON_LENGTH } }}
               InputLabelProps={{ shrink: true }}
               sx={{ flex: 2 }}
             />
