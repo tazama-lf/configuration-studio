@@ -203,10 +203,31 @@ const RulePage: React.FC = () => {
 
   const isReadOnly = dialogMode === 'view';
 
+  const renderTruncatedCell = (text: string) => (
+    <Tooltip title={text} disableHoverListener={!text}>
+      <Box
+        sx={{
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          width: '100%',
+        }}
+      >
+        {text}
+      </Box>
+    </Tooltip>
+  );
+
   const columns: GridColDef[] = [
     { field: 'id', headerName: 'ID', flex: 1, minWidth: 150 },
     { field: 'cfg', headerName: 'Config Version', width: 130 },
-    { field: 'desc', headerName: 'Description', flex: 1.5, minWidth: 200 },
+    {
+      field: 'desc',
+      headerName: 'Description',
+      flex: 1.5,
+      minWidth: 200,
+      renderCell: (params: GridRenderCellParams) => renderTruncatedCell(params.value ?? ''),
+    },
     {
       field: 'config',
       headerName: 'Config',
@@ -220,7 +241,7 @@ const RulePage: React.FC = () => {
         if (config.exitConditions?.length) parts.push(`${config.exitConditions.length} exit conditions`);
         if (config.bands?.length) parts.push(`${config.bands.length} bands`);
         if (config.cases) parts.push('cases');
-        return parts.join(', ') || 'empty';
+        return renderTruncatedCell(parts.join(', ') || 'empty');
       },
     },
     { field: 'creDtTm', headerName: 'Created At', width: 180, type: 'string', valueFormatter: (value: unknown) => { if (!value) return ''; const d = new Date(value as string); return isNaN(d.getTime()) ? String(value) : d.toLocaleString(); } },

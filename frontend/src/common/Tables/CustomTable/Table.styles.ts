@@ -12,9 +12,11 @@ export const TableOuter = styled(Box, {
 
 export const TableWrapper = styled(Box)(() => ({
   width: '100%',
+  maxWidth: '100%',
   backgroundColor: '#fff',
   border: '1px solid #e5e7eb',
   borderRadius: 8,
+  overflow: 'hidden',
 }));
 
 export const PaginationContainer = styled(Box)(() => ({
@@ -56,7 +58,8 @@ export const StyledDataGrid = styled(DataGrid, {
 
   '& .MuiDataGrid-cell': {
     fontSize: 12,
-    overflow: 'visible',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
   },
 
   ...(multilineHeader && {
@@ -86,6 +89,7 @@ export const StyledDataGrid = styled(DataGrid, {
     '& .MuiDataGrid-cell': {
       fontSize: 11.5,
       whiteSpace: 'normal',
+      overflow: 'visible',
       textAlign: horizontalScrollTextAlign,
     },
   }),
@@ -110,7 +114,7 @@ export const StyledDataGrid = styled(DataGrid, {
 
   '& .MuiDataGrid-row': {
     cursor: 'pointer',
-    overflow: 'visible',
+    overflow: horizontalScroll ? 'visible' : 'hidden',
   },
 
   '& .MuiDataGrid-row:hover': {
