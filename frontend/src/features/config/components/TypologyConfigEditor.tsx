@@ -18,6 +18,8 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { configApi } from '../services/configApi';
+import { sanitizeId } from '../../../utils/validation';
+import { MAX_ID_LENGTH } from '../../../utils/constants';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -400,6 +402,7 @@ export default function TypologyConfigEditor({
                       fullWidth
                       required
                       placeholder="v001at100at100"
+                      slotProps={{ htmlInput: { maxLength: MAX_ID_LENGTH } }}
                     />
 
                     {/* Weights */}
@@ -442,12 +445,13 @@ export default function TypologyConfigEditor({
                             label="Ref"
                             value={w.ref}
                             onChange={(e) =>
-                              { updateWeight(rIdx, wIdx, { ref: e.target.value }); }
+                              { updateWeight(rIdx, wIdx, { ref: sanitizeId(e.target.value) }); }
                             }
                             disabled={readOnly}
                             size="small"
                             sx={{ flex: 1 }}
                             placeholder={wIdx >= 1 ? '.01' : undefined}
+                            slotProps={{ htmlInput: { maxLength: MAX_ID_LENGTH } }}
                           />
                           <TextField
                             label="Weight"
@@ -617,13 +621,14 @@ export default function TypologyConfigEditor({
               label="Flow Processor"
               value={workflow.flowProcessor}
               onChange={(e) =>
-                { setWorkflow({ ...workflow, flowProcessor: e.target.value }); }
+                { setWorkflow({ ...workflow, flowProcessor: sanitizeId(e.target.value) }); }
               }
               disabled={readOnly}
               size="small"
               fullWidth
               placeholder="EFRuP@1.0.0"
               helperText="Rule that acts as the flow processor"
+              slotProps={{ htmlInput: { maxLength: MAX_ID_LENGTH } }}
             />
           </Box>
         </Paper>
