@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
+import { sanitizeId } from '../../../utils/validation';
 
 // ── Known parameter keys (from Tazama rule configurations) ────────────────
 
@@ -338,6 +339,7 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
             </TextField>
             <TextField
               size="small"
+              type="number"
               label="Value"
               placeholder="123"
               value={p.value}
@@ -374,7 +376,7 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
               label="Sub Rule Ref"
               placeholder=".x00"
               value={ec.subRuleRef}
-              onChange={(e) => updateExitCondition(idx, 'subRuleRef', e.target.value)}
+              onChange={(e) => updateExitCondition(idx, 'subRuleRef', sanitizeId(e.target.value))}
               disabled={readOnly}
               InputLabelProps={{ shrink: true }}
               sx={{ flex: 1 }}
@@ -471,7 +473,7 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
                 label="Sub Rule Ref"
                 placeholder=".01"
                 value={b.subRuleRef}
-                onChange={(e) => updateBand(idx, 'subRuleRef', e.target.value)}
+                onChange={(e) => updateBand(idx, 'subRuleRef', sanitizeId(e.target.value))}
                 disabled={readOnly}
                 InputLabelProps={{ shrink: true }}
                 sx={{ flex: 1, minWidth: 120 }}
@@ -538,7 +540,7 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
                 label="Sub Rule Ref"
                 placeholder=".01"
                 value={ce.subRuleRef}
-                onChange={(e) => updateCaseExpression(idx, 'subRuleRef', e.target.value)}
+                onChange={(e) => updateCaseExpression(idx, 'subRuleRef', sanitizeId(e.target.value))}
                 disabled={readOnly}
                 InputLabelProps={{ shrink: true }}
                 sx={{ flex: 1, minWidth: 120 }}
@@ -588,7 +590,7 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
               label="Sub Rule Ref"
               placeholder=".00"
               value={caseAlternative.subRuleRef}
-              onChange={(e) => setCaseAlternative({ ...caseAlternative, subRuleRef: e.target.value })}
+              onChange={(e) => setCaseAlternative({ ...caseAlternative, subRuleRef: sanitizeId(e.target.value) })}
               disabled={readOnly}
               InputLabelProps={{ shrink: true }}
               sx={{ flex: 1 }}

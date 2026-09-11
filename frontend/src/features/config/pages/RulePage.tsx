@@ -23,6 +23,7 @@ import { useToast } from '../../../shared/providers/ToastProvider';
 import { useAuth } from '../../auth/contexts/AuthContext';
 import { configApi } from '../services/configApi';
 import RuleConfigEditor from '../components/RuleConfigEditor';
+import { sanitizeId } from '../../../utils/validation';
 
 interface RuleRecord {
   id: string;
@@ -41,11 +42,12 @@ interface RuleRecord {
 }
 
 const PAGE_LIMIT = 20;
+const CONFIG_VERSION_PATTERN = /^\d+(?:\.\d+)*$/;
 
 const RulePage: React.FC = () => {
   const { showSuccess, showError } = useToast();
   const { user } = useAuth();
-  const tenantId = user?.tenantId ?? 'DEFAULT';
+  const tenantId = user?.tenantId ?? 'default';
   const tenantPrefix = `${tenantId}-`;
   const [records, setRecords] = useState<RuleRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -135,6 +137,10 @@ const RulePage: React.FC = () => {
       showError('Validation error', 'Config Version is required');
       return;
     }
+    if (!CONFIG_VERSION_PATTERN.test(formData.cfg)) {
+      showError('Validation error', 'Config Version must contain only digits and dots (e.g. 1.0.0)');
+      return;
+    }
     if (!formData.desc.trim()) {
       showError('Validation error', 'Description is required');
       return;
@@ -202,6 +208,7 @@ const RulePage: React.FC = () => {
   };
 
   const isReadOnly = dialogMode === 'view';
+  const cfgInvalid = formData.cfg.length > 0 && !CONFIG_VERSION_PATTERN.test(formData.cfg);
 
   const renderTruncatedCell = (text: string) => (
     <Tooltip title={text} disableHoverListener={!text}>
@@ -331,7 +338,7 @@ const RulePage: React.FC = () => {
               label="ID"
               placeholder="901@1.0.0"
               value={dialogMode === 'create' ? formData.id : formData.id}
-              onChange={(e) => setFormData({ ...formData, id: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, id: sanitizeId(e.target.value) })}
               disabled={isReadOnly || dialogMode === 'edit'}
               required
               fullWidth
@@ -359,11 +366,18 @@ const RulePage: React.FC = () => {
               label="Config Version"
               placeholder="1.0.0"
               value={formData.cfg}
-              onChange={(e) => setFormData({ ...formData, cfg: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, cfg: e.target.value.replace(/[^0-9.]/g, '') })}
               disabled={isReadOnly || dialogMode === 'edit'}
               required
               fullWidth
-              helperText={dialogMode === 'edit' ? 'Config version cannot be changed' : undefined}
+              error={cfgInvalid}
+              helperText={
+                dialogMode === 'edit'
+                  ? 'Config version cannot be changed'
+                  : cfgInvalid
+                    ? 'Config Version must contain only digits and dots (e.g. 1.0.0)'
+                    : undefined
+              }
               InputLabelProps={{ shrink: true }}
             />
             <TextField
@@ -393,7 +407,7 @@ const RulePage: React.FC = () => {
             {isReadOnly ? 'Close' : 'Cancel'}
           </Button>
           {!isReadOnly && (
-            <Button variant="contained" onClick={handleSave} disabled={actionLoading}>
+            <Button variant="contained" onClick={handleSave} disabled={actionLoading || cfgInvalid}>
               {dialogMode === 'create' ? 'Create' : 'Save'}
             </Button>
           )}
