@@ -16,6 +16,8 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import { sanitizeId } from '../../../utils/validation';
 import { MAX_ID_LENGTH, MAX_REASON_LENGTH, MAX_SHORT_VALUE_LENGTH } from '../../../utils/constants';
 
+const VALID_DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'] as const;
+
 // ── Known parameter keys (from Tazama rule configurations) ────────────────
 
 const KNOWN_PARAMETER_KEYS = [
@@ -419,8 +421,8 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
           <Box key={idx} sx={{ ...rowSx, flexWrap: 'wrap' }}>
             <TextField
               size="small"
+              type="time"
               label="Start"
-              placeholder="00:00"
               value={tf.start}
               onChange={(e) => updateTimeframe(idx, 'start', e.target.value)}
               disabled={readOnly}
@@ -429,8 +431,8 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
             />
             <TextField
               size="small"
+              type="time"
               label="End"
-              placeholder="23:59"
               value={tf.end}
               onChange={(e) => updateTimeframe(idx, 'end', e.target.value)}
               disabled={readOnly}
@@ -438,16 +440,25 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
               sx={{ flex: 1, minWidth: 100 }}
             />
             <TextField
+              select
               size="small"
-              label="Days (comma-separated)"
-              placeholder="MON,TUE,WED"
-              value={(tf.days ?? []).join(',')}
-              onChange={(e) => updateTimeframe(idx, 'days', e.target.value.split(',').map((d) => d.trim()).filter(Boolean))}
+              label="Days"
+              value={tf.days ?? []}
+              onChange={(e) => updateTimeframe(idx, 'days', e.target.value as unknown as string[])}
               disabled={readOnly}
-              slotProps={{ htmlInput: { maxLength: MAX_SHORT_VALUE_LENGTH } }}
+              SelectProps={{
+                multiple: true,
+                renderValue: (selected) => (selected as string[]).join(', '),
+              }}
               InputLabelProps={{ shrink: true }}
               sx={{ flex: 2, minWidth: 200 }}
-            />
+            >
+              {VALID_DAYS.map((day) => (
+                <MenuItem key={day} value={day}>
+                  {day}
+                </MenuItem>
+              ))}
+            </TextField>
             {!readOnly && (
               <IconButton size="small" color="error" onClick={() => removeTimeframe(idx)}>
                 <DeleteIcon fontSize="small" />
