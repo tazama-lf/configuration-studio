@@ -17,6 +17,7 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { configApi } from '../services/configApi';
+import { sanitizeId } from '../../../utils/validation';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -148,7 +149,7 @@ export default function NetworkMapConfigEditor({
   const addTypology = (msgIdx: number) => {
     const msg = messages[msgIdx];
     updateMessage(msgIdx, {
-      typologies: [...msg.typologies, { id: '', cfg: '', rules: [], tenantId: tenantId ?? 'DEFAULT' }],
+      typologies: [...msg.typologies, { id: '', cfg: '', rules: [], tenantId: tenantId ?? 'default' }],
     });
   };
 
@@ -227,7 +228,7 @@ export default function NetworkMapConfigEditor({
                   <TextField
                     label="Message ID"
                     value={msg.id}
-                    onChange={(e) => updateMessage(mIdx, { id: e.target.value })}
+                    onChange={(e) => updateMessage(mIdx, { id: sanitizeId(e.target.value) })}
                     disabled={readOnly}
                     size="small"
                     sx={{ flex: 1, minWidth: 180 }}

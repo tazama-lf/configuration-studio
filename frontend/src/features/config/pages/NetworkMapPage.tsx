@@ -46,7 +46,7 @@ const PAGE_LIMIT = 20;
 const NetworkMapPage: React.FC = () => {
   const { showSuccess, showError } = useToast();
   const { user } = useAuth();
-  const tenantId = user?.tenantId ?? "DEFAULT";
+  const tenantId = user?.tenantId ?? "default";
   const [records, setRecords] = useState<NetworkMapRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(0);
@@ -72,7 +72,7 @@ const NetworkMapPage: React.FC = () => {
     cfg: "1.0.0",
     active: true,
     messages: "[]",
-    tenantId: "DEFAULT",
+    tenantId: "default",
   });
 
   const fetchData = useCallback(async () => {
