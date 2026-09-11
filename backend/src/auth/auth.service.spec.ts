@@ -27,6 +27,8 @@ describe('AuthService', () => {
     get: jest.fn(),
   };
 
+
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -174,11 +176,59 @@ describe('AuthService', () => {
       await expect(service.login('user', 'pass')).rejects.toThrow(HttpException);
     });
 
+    it('should throw HttpException with 429 and default message when data.message missing', async () => {
+      mockConfigService.get.mockReturnValue('http://auth-service');
+      mockHttpService.post.mockReturnValue(
+        throwError(() => ({
+          response: { status: 429, data: { error: 'some other field' } },
+          message: 'Too many requests',
+        })),
+      );
+
+      try {
+        await service.login('user', 'pass');
+        fail('Should have thrown');
+      } catch (error) {
+        expect(error).toBeInstanceOf(HttpException);
+        const response = (error as HttpException).getResponse() as { message: string };
+        expect(response.message).toBe('Account is locked. Too many failed attempts.');
+      }
+    });
+
+    it('should throw HttpException with 429 and default message when data.message missing', async () => {
+      mockConfigService.get.mockReturnValue('http://auth-service');
+      mockHttpService.post.mockReturnValue(
+        throwError(() => ({
+          response: { status: 429, data: { error: 'no message field' } },
+          message: 'Too many requests',
+        })),
+      );
+
+      try {
+        await service.login('user', 'pass');
+        fail('Should have thrown');
+      } catch (error) {
+        expect(error).toBeInstanceOf(HttpException);
+        const response = (error as HttpException).getResponse() as { message: string };
+        expect(response.message).toBe('Account is locked. Too many failed attempts.');
+      }
+    });
+
     it('should throw ServiceUnavailableException on network error without response', async () => {
       mockConfigService.get.mockReturnValue('http://auth-service');
       mockHttpService.post.mockReturnValue(
         throwError(() => ({ message: 'Network error' })),
       );
+
+      await expect(service.login('user', 'pass')).rejects.toThrow(
+        ServiceUnavailableException,
+      );
+    });
+
+    it('should throw ServiceUnavailableException when response object lacks any token', async () => {
+      mockConfigService.get.mockReturnValue('http://auth-service');
+      // response.data is an object but contains no token fields
+      mockHttpService.post.mockReturnValue(of({ data: { some: 'value' } }));
 
       await expect(service.login('user', 'pass')).rejects.toThrow(
         ServiceUnavailableException,
@@ -227,5 +277,36 @@ describe('AuthService', () => {
       // token field takes priority over user.token
       expect(result.token).toBe('primary-token');
     });
+
+    describe('private helpers (extractToken, extractExpiresIn)', () => {
+      it('extractToken should prefer token then access_token then jwt then user.token', () => {
+        const svc = service as any;
+
+        expect(svc.extractToken('raw-string')).toBe('raw-string');
+
+        expect(
+          svc.extractToken({ token: 't1', access_token: 't2', jwt: 't3', user: { token: 't4' } }),
+        ).toBe('t1');
+
+        expect(svc.extractToken({ access_token: 'a1', jwt: 'j1', user: {} })).toBe('a1');
+
+        expect(svc.extractToken({ jwt: 'jtoken', user: {} })).toBe('jtoken');
+
+        expect(svc.extractToken({ user: { token: 'nested' } })).toBe('nested');
+      });
+
+      it('extractToken should throw when no token present', () => {
+        const svc = service as any;
+        expect(() => svc.extractToken({ some: 'value' })).toThrow();
+      });
+
+      it('extractExpiresIn should return snake_case or camelCase or null', () => {
+        const svc = service as any;
+        expect(svc.extractExpiresIn({ expires_in: 100 })).toBe(100);
+        expect(svc.extractExpiresIn({ expiresIn: 200 })).toBe(200);
+        expect(svc.extractExpiresIn({})).toBeNull();
+      });
+    });
   });
 });
+

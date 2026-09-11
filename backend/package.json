@@ -43,6 +43,7 @@
     "@stylistic/eslint-plugin": "^5.10.0",
     "@swc/cli": "^0.6.0",
     "@swc/core": "^1.10.7",
+    "@swc/jest": "^0.2.39",
     "@types/express": "^5.0.0",
     "@types/jest": "^29.5.14",
     "@types/node": "^22.10.7",
@@ -72,7 +73,7 @@
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
-      "^.+\\.(t|j)s$": "ts-jest"
+      "^.+\\.(t|j)s$": ["@swc/jest", { "jsc": { "target": "es2023", "parser": { "syntax": "typescript", "decorators": true }, "transform": { "legacyDecorator": true, "decoratorMetadata": true } } }]
     },
     "collectCoverageFrom": [
       "**/*.(t|j)s",
@@ -92,10 +93,10 @@
     ],
     "coverageThreshold": {
       "global": {
-        "branches": 85,
-        "functions": 85,
-        "lines": 85,
-        "statements": 85
+        "branches": 100,
+        "functions": 100,
+        "lines": 100,
+        "statements": 100
       }
     },
     "testEnvironment": "node"
