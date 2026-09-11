@@ -13,7 +13,7 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { sanitizeId } from '../../../utils/validation';
+import { sanitizeId, getNextSubRuleRef } from '../../../utils/validation';
 import { MAX_ID_LENGTH, MAX_REASON_LENGTH, MAX_SHORT_VALUE_LENGTH } from '../../../utils/constants';
 
 const VALID_DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'] as const;
@@ -243,7 +243,11 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
   // ── Handlers: Exit Conditions ──────────────────────────────────────────
 
   const addExitCondition = (): void => {
-    setExitConditions([...exitConditions, { subRuleRef: '', reason: '' }]);
+    const subRuleRef = getNextSubRuleRef(
+      exitConditions.map((ec) => ec.subRuleRef),
+      { prefix: 'X', start: 0 },
+    );
+    setExitConditions([...exitConditions, { subRuleRef, reason: '' }]);
   };
   const updateExitCondition = (idx: number, field: keyof ExitCondition, val: string): void => {
     const next = [...exitConditions];
@@ -271,7 +275,11 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
   // ── Handlers: Bands ────────────────────────────────────────────────────
 
   const addBand = (): void => {
-    setBands([...bands, { subRuleRef: '', reason: '' }]);
+    const subRuleRef = getNextSubRuleRef(
+      bands.map((b) => b.subRuleRef),
+      { start: 1 },
+    );
+    setBands([...bands, { subRuleRef, reason: '' }]);
   };
   const updateBand = (idx: number, field: keyof Band, val: string | number | undefined): void => {
     const next = [...bands];
@@ -285,7 +293,11 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
   // ── Handlers: Case Expressions ─────────────────────────────────────────
 
   const addCaseExpression = (): void => {
-    setCaseExpressions([...caseExpressions, { value: '', reason: '', subRuleRef: '' }]);
+    const subRuleRef = getNextSubRuleRef(
+      caseExpressions.map((ce) => ce.subRuleRef),
+      { start: 1 },
+    );
+    setCaseExpressions([...caseExpressions, { value: '', reason: '', subRuleRef }]);
   };
   const updateCaseExpression = (idx: number, field: keyof CaseExpression, val: string): void => {
     const next = [...caseExpressions];
@@ -383,11 +395,9 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
             <TextField
               size="small"
               label="Sub Rule Ref"
-              placeholder=".x00"
               value={ec.subRuleRef}
-              onChange={(e) => updateExitCondition(idx, 'subRuleRef', sanitizeId(e.target.value))}
-              disabled={readOnly}
-              slotProps={{ htmlInput: { maxLength: MAX_ID_LENGTH } }}
+              disabled
+              helperText="Auto-generated"
               InputLabelProps={{ shrink: true }}
               sx={{ flex: 1 }}
             />
@@ -492,11 +502,9 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
               <TextField
                 size="small"
                 label="Sub Rule Ref"
-                placeholder=".01"
                 value={b.subRuleRef}
-                onChange={(e) => updateBand(idx, 'subRuleRef', sanitizeId(e.target.value))}
-                disabled={readOnly}
-                slotProps={{ htmlInput: { maxLength: MAX_ID_LENGTH } }}
+                disabled
+                helperText="Auto-generated"
                 InputLabelProps={{ shrink: true }}
                 sx={{ flex: 1, minWidth: 120 }}
               />
@@ -561,11 +569,9 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
               <TextField
                 size="small"
                 label="Sub Rule Ref"
-                placeholder=".01"
                 value={ce.subRuleRef}
-                onChange={(e) => updateCaseExpression(idx, 'subRuleRef', sanitizeId(e.target.value))}
-                disabled={readOnly}
-                slotProps={{ htmlInput: { maxLength: MAX_ID_LENGTH } }}
+                disabled
+                helperText="Auto-generated"
                 InputLabelProps={{ shrink: true }}
                 sx={{ flex: 1, minWidth: 120 }}
               />
