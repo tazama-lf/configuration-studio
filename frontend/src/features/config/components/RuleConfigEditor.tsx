@@ -78,6 +78,8 @@ interface RuleConfigEditorProps {
   cfg?: string;
   desc?: string;
   tenantId?: string;
+  hideJsonPreview?: boolean;
+  onPreviewChange?: (json: string) => void;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -145,7 +147,7 @@ function parseConfig(json: string): {
 
 // ── Component ──────────────────────────────────────────────────────────────
 
-const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, readOnly = false, id = '', cfg = '', desc = '', tenantId = '' }) => {
+const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, readOnly = false, id = '', cfg = '', desc = '', tenantId = '', hideJsonPreview = false, onPreviewChange }) => {
   const initial = useMemo(() => parseConfig(value), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [configType, setConfigType] = useState<ConfigType>(initial.configType);
@@ -219,6 +221,10 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
   useEffect(() => {
     onChange(fullPreviewJson);
   }, [fullPreviewJson]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    onPreviewChange?.(fullPreviewJson);
+  }, [fullPreviewJson, onPreviewChange]);
 
   // ── Handlers: Parameters ───────────────────────────────────────────────
 
@@ -631,36 +637,40 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
         </Box>
       )}
 
-      <Divider sx={{ mb: 2 }} />
+      {!hideJsonPreview && (
+        <>
+          <Divider sx={{ mb: 2 }} />
 
-      {/* JSON Preview */}
-      <Box>
-        <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
-          JSON Preview (read-only)
-        </Typography>
-        <Paper
-          variant="outlined"
-          sx={{
-            p: 2,
-            backgroundColor: '#f5f5f5',
-            maxHeight: 300,
-            overflow: 'auto',
-          }}
-        >
-          <Typography
-            component="pre"
-            sx={{
-              fontFamily: 'monospace',
-              fontSize: '0.8rem',
-              whiteSpace: 'pre-wrap',
-              margin: 0,
-              color: '#374151',
-            }}
-          >
-            {fullPreviewJson}
-          </Typography>
-        </Paper>
-      </Box>
+          {/* JSON Preview */}
+          <Box>
+            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+              JSON Preview (read-only)
+            </Typography>
+            <Paper
+              variant="outlined"
+              sx={{
+                p: 2,
+                backgroundColor: '#f5f5f5',
+                maxHeight: 300,
+                overflow: 'auto',
+              }}
+            >
+              <Typography
+                component="pre"
+                sx={{
+                  fontFamily: 'monospace',
+                  fontSize: '0.8rem',
+                  whiteSpace: 'pre-wrap',
+                  margin: 0,
+                  color: '#374151',
+                }}
+              >
+                {fullPreviewJson}
+              </Typography>
+            </Paper>
+          </Box>
+        </>
+      )}
     </Box>
   );
 };
