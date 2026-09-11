@@ -49,6 +49,8 @@ interface TypologyConfigEditorProps {
   cfg?: string;
   desc?: string;
   tenantId?: string;
+  hideJsonPreview?: boolean;
+  onPreviewChange?: (json: string) => void;
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -61,6 +63,8 @@ export default function TypologyConfigEditor({
   cfg,
   desc,
   tenantId,
+  hideJsonPreview = false,
+  onPreviewChange,
 }: TypologyConfigEditorProps) {
   // Rule options fetched from the rules table — stored as { id, cfg, desc }
   const [ruleOptions, setRuleOptions] = useState<
@@ -154,6 +158,10 @@ export default function TypologyConfigEditor({
       onChange(json);
     }
   }, [generatedConfig, onChange, value]);
+
+  useEffect(() => {
+    onPreviewChange?.(fullPreviewJson);
+  }, [fullPreviewJson, onPreviewChange]);
 
   // ── Rule helpers ─────────────────────────────────────────────────────────
   const addRule = () => {
@@ -634,32 +642,33 @@ export default function TypologyConfigEditor({
         </Paper>
       </Box>
 
-      {/* JSON Preview */}
-      <Box>
-        <Paper
-          variant="outlined"
-          sx={{ p: 2, maxHeight: '40vh', overflow: 'auto' }}
-        >
-          <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-            JSON Preview
-          </Typography>
-          <Divider sx={{ mb: 1 }} />
-          <Box
-            component="pre"
-            sx={{
-              fontFamily: 'monospace',
-              fontSize: '0.8rem',
-              lineHeight: 1.5,
-              color: '#374151',
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-              m: 0,
-            }}
+      {!hideJsonPreview && (
+        <Box>
+          <Paper
+            variant="outlined"
+            sx={{ p: 2, maxHeight: '40vh', overflow: 'auto' }}
           >
-            {fullPreviewJson}
-          </Box>
-        </Paper>
-      </Box>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+              JSON Preview
+            </Typography>
+            <Divider sx={{ mb: 1 }} />
+            <Box
+              component="pre"
+              sx={{
+                fontFamily: 'monospace',
+                fontSize: '0.8rem',
+                lineHeight: 1.5,
+                color: '#374151',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+                m: 0,
+              }}
+            >
+              {fullPreviewJson}
+            </Box>
+          </Paper>
+        </Box>
+      )}
     </Box>
   );
 }

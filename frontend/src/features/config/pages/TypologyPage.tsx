@@ -24,6 +24,7 @@ import { useToast } from '../../../shared/providers/ToastProvider';
 import { useAuth } from '../../auth/contexts/AuthContext';
 import { configApi } from '../services/configApi';
 import TypologyConfigEditor from '../components/TypologyConfigEditor';
+import JsonPreviewPanel from '../components/JsonPreviewPanel';
 import { sanitizeId, isValidConfigVersion } from '../../../utils/validation';
 import { MAX_ID_LENGTH, MAX_CONFIG_VERSION_LENGTH, MAX_DESCRIPTION_LENGTH } from '../../../utils/constants';
 
@@ -71,6 +72,7 @@ const TypologyPage: React.FC = () => {
     desc: '',
     config: '{}',
   });
+  const [previewJson, setPreviewJson] = useState('');
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -303,7 +305,8 @@ const TypologyPage: React.FC = () => {
           {dialogMode === 'create' ? 'Create Typology' : dialogMode === 'edit' ? 'Edit Typology' : 'View Typology'}
         </DialogTitle>
         <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, mt: 1 }}>
+          <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
             <Typography variant="body2" color="text.secondary">
               Define a typology that associates a set of rules with weights, an expression to combine
               their results, and workflow thresholds for alerting and interdiction.
@@ -372,7 +375,13 @@ const TypologyPage: React.FC = () => {
               cfg={formData.cfg}
               desc={formData.desc}
               tenantId={tenantId}
+              hideJsonPreview
+              onPreviewChange={setPreviewJson}
             />
+          </Box>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <JsonPreviewPanel json={previewJson} />
+          </Box>
           </Box>
         </DialogContent>
         <DialogActions>
