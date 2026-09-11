@@ -30,6 +30,8 @@ import { useToast } from "../../../shared/providers/ToastProvider";
 import { useAuth } from "../../auth/contexts/AuthContext";
 import { configApi, type PaginatedResponse } from "../services/configApi";
 import NetworkMapConfigEditor from "../components/NetworkMapConfigEditor";
+import { isValidConfigVersion } from "../../../utils/validation";
+import { MAX_CONFIG_VERSION_LENGTH } from "../../../utils/constants";
 
 interface NetworkMapRecord {
   cfg: string;
@@ -196,6 +198,10 @@ const NetworkMapPage: React.FC = () => {
       showError("Validation error", "Config Version is required");
       return;
     }
+    if (!isValidConfigVersion(formData.cfg)) {
+      showError("Validation error", "Config Version must contain only digits and dots (e.g. 1.0.0)");
+      return;
+    }
     let parsedMessages: unknown = [];
     try {
       parsedMessages = JSON.parse(formData.messages || "[]");
@@ -253,6 +259,7 @@ const NetworkMapPage: React.FC = () => {
   };
 
   const isReadOnly = dialogMode === "view";
+  const cfgInvalid = formData.cfg.length > 0 && !isValidConfigVersion(formData.cfg);
 
   const columns: GridColDef[] = [
     { field: "cfg", headerName: "Config Version", width: 130 },
@@ -403,11 +410,19 @@ const NetworkMapPage: React.FC = () => {
             <TextField
               label="Config Version"
               value={formData.cfg}
-              onChange={(e) => setFormData({ ...formData, cfg: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, cfg: e.target.value.replace(/[^0-9.]/g, "") })}
               disabled={isReadOnly || dialogMode === "edit"}
               required
               fullWidth
-              helperText={dialogMode === "edit" ? "Config version cannot be changed" : undefined}
+              error={cfgInvalid}
+              slotProps={{ htmlInput: { maxLength: MAX_CONFIG_VERSION_LENGTH } }}
+              helperText={
+                dialogMode === "edit"
+                  ? "Config version cannot be changed"
+                  : cfgInvalid
+                    ? "Config Version must contain only digits and dots (e.g. 1.0.0)"
+                    : undefined
+              }
             />
             <FormControlLabel
               control={
@@ -434,7 +449,7 @@ const NetworkMapPage: React.FC = () => {
         <DialogActions>
           <Button onClick={() => setDialogOpen(false)}>{isReadOnly ? "Close" : "Cancel"}</Button>
           {!isReadOnly && (
-            <Button variant="contained" onClick={handleSave} disabled={actionLoading}>
+            <Button variant="contained" onClick={handleSave} disabled={actionLoading || cfgInvalid}>
               {dialogMode === "create" ? "Create" : "Save"}
             </Button>
           )}

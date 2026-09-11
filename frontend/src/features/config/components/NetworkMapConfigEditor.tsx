@@ -18,6 +18,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { configApi } from '../services/configApi';
 import { sanitizeId } from '../../../utils/validation';
+import { MAX_ID_LENGTH, MAX_CONFIG_VERSION_LENGTH, MAX_SHORT_VALUE_LENGTH } from '../../../utils/constants';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -231,22 +232,25 @@ export default function NetworkMapConfigEditor({
                     onChange={(e) => updateMessage(mIdx, { id: sanitizeId(e.target.value) })}
                     disabled={readOnly}
                     size="small"
+                    slotProps={{ htmlInput: { maxLength: MAX_ID_LENGTH } }}
                     sx={{ flex: 1, minWidth: 180 }}
                   />
                   <TextField
                     label="Config Version"
                     value={msg.cfg}
-                    onChange={(e) => updateMessage(mIdx, { cfg: e.target.value })}
+                    onChange={(e) => updateMessage(mIdx, { cfg: e.target.value.replace(/[^0-9.]/g, '') })}
                     disabled={readOnly}
                     size="small"
+                    slotProps={{ htmlInput: { maxLength: MAX_CONFIG_VERSION_LENGTH } }}
                     sx={{ flex: 1, minWidth: 120 }}
                   />
                   <TextField
                     label="Transaction Type (txTp)"
                     value={msg.txTp}
-                    onChange={(e) => updateMessage(mIdx, { txTp: e.target.value })}
+                    onChange={(e) => updateMessage(mIdx, { txTp: sanitizeId(e.target.value) })}
                     disabled={readOnly}
                     size="small"
+                    slotProps={{ htmlInput: { maxLength: MAX_SHORT_VALUE_LENGTH } }}
                     sx={{ flex: 2, minWidth: 200 }}
                   />
                 </Box>
