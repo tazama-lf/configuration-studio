@@ -24,6 +24,7 @@ import { useToast } from '../../../shared/providers/ToastProvider';
 import { useAuth } from '../../auth/contexts/AuthContext';
 import { configApi } from '../services/configApi';
 import TypologyConfigEditor from '../components/TypologyConfigEditor';
+import { sanitizeId } from '../../../utils/validation';
 
 interface TypologyRecord {
   id: string;
@@ -47,7 +48,7 @@ const PAGE_LIMIT = 20;
 const TypologyPage: React.FC = () => {
   const { showSuccess, showError } = useToast();
   const { user } = useAuth();
-  const tenantId = user?.tenantId ?? 'DEFAULT';
+  const tenantId = user?.tenantId ?? 'default';
   const tenantPrefix = `${tenantId}-typology-`;
   const [records, setRecords] = useState<TypologyRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -305,7 +306,7 @@ const TypologyPage: React.FC = () => {
               <TextField
                 label="ID"
                 value={formData.id}
-                onChange={(e) => setFormData({ ...formData, id: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, id: sanitizeId(e.target.value) })}
                 disabled={isReadOnly || dialogMode === 'edit'}
                 required
                 fullWidth
