@@ -48,6 +48,8 @@ interface NetworkMapConfigEditorProps {
   cfg?: string;
   active?: boolean;
   tenantId?: string;
+  hideJsonPreview?: boolean;
+  onPreviewChange?: (json: string) => void;
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -59,6 +61,8 @@ export default function NetworkMapConfigEditor({
   cfg,
   active,
   tenantId,
+  hideJsonPreview = false,
+  onPreviewChange,
 }: NetworkMapConfigEditorProps) {
   // Full typology records (to auto-load rules when selected)
   const [typologyRecords, setTypologyRecords] = useState<
@@ -129,6 +133,10 @@ export default function NetworkMapConfigEditor({
       onChange(generatedJson);
     }
   }, [generatedJson, onChange, value]);
+
+  useEffect(() => {
+    onPreviewChange?.(fullPreviewJson);
+  }, [fullPreviewJson, onPreviewChange]);
 
   // ── Message helpers ──────────────────────────────────────────────────────
   const addMessage = () => {
@@ -393,29 +401,30 @@ export default function NetworkMapConfigEditor({
         )}
       </Paper>
 
-      {/* JSON Preview */}
-      <Box>
-        <Paper variant="outlined" sx={{ p: 2, maxHeight: '40vh', overflow: 'auto' }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-            JSON Preview
-          </Typography>
-          <Divider sx={{ mb: 1 }} />
-          <Box
-            component="pre"
-            sx={{
-              fontFamily: 'monospace',
-              fontSize: '0.8rem',
-              lineHeight: 1.5,
-              color: '#374151',
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-              m: 0,
-            }}
-          >
-            {fullPreviewJson}
-          </Box>
-        </Paper>
-      </Box>
+      {!hideJsonPreview && (
+        <Box>
+          <Paper variant="outlined" sx={{ p: 2, maxHeight: '40vh', overflow: 'auto' }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+              JSON Preview
+            </Typography>
+            <Divider sx={{ mb: 1 }} />
+            <Box
+              component="pre"
+              sx={{
+                fontFamily: 'monospace',
+                fontSize: '0.8rem',
+                lineHeight: 1.5,
+                color: '#374151',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+                m: 0,
+              }}
+            >
+              {fullPreviewJson}
+            </Box>
+          </Paper>
+        </Box>
+      )}
     </Box>
   );
 }

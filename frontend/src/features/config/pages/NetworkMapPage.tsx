@@ -30,6 +30,7 @@ import { useToast } from "../../../shared/providers/ToastProvider";
 import { useAuth } from "../../auth/contexts/AuthContext";
 import { configApi, type PaginatedResponse } from "../services/configApi";
 import NetworkMapConfigEditor from "../components/NetworkMapConfigEditor";
+import JsonPreviewPanel from "../components/JsonPreviewPanel";
 import { isValidConfigVersion } from "../../../utils/validation";
 import { MAX_CONFIG_VERSION_LENGTH } from "../../../utils/constants";
 
@@ -76,6 +77,7 @@ const NetworkMapPage: React.FC = () => {
     messages: "[]",
     tenantId: "default",
   });
+  const [previewJson, setPreviewJson] = useState("");
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -406,7 +408,8 @@ const NetworkMapPage: React.FC = () => {
               : "View Network Map"}
         </DialogTitle>
         <DialogContent>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
+          <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, gap: 2, mt: 1 }}>
+          <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
             <TextField
               label="Config Version"
               value={formData.cfg}
@@ -443,7 +446,13 @@ const NetworkMapPage: React.FC = () => {
               cfg={formData.cfg}
               active={formData.active}
               tenantId={tenantId}
+              hideJsonPreview
+              onPreviewChange={setPreviewJson}
             />
+          </Box>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <JsonPreviewPanel json={previewJson} />
+          </Box>
           </Box>
         </DialogContent>
         <DialogActions>
