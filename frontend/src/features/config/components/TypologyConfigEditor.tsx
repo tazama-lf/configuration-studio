@@ -18,7 +18,7 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { configApi } from '../services/configApi';
-import { sanitizeId } from '../../../utils/validation';
+import { sanitizeId, getNextSubRuleRef } from '../../../utils/validation';
 import { MAX_ID_LENGTH } from '../../../utils/constants';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -182,7 +182,11 @@ export default function TypologyConfigEditor({
   // ── Weight helpers ───────────────────────────────────────────────────────
   const addWeight = (ruleIdx: number) => {
     const rule = rules[ruleIdx];
-    updateRule(ruleIdx, { wghts: [...rule.wghts, { ref: '', wght: 0 }] });
+    const ref = getNextSubRuleRef(
+      rule.wghts.map((w) => w.ref),
+      { start: 1 },
+    );
+    updateRule(ruleIdx, { wghts: [...rule.wghts, { ref, wght: 0 }] });
   };
 
   const updateWeight = (
@@ -452,14 +456,10 @@ export default function TypologyConfigEditor({
                           <TextField
                             label="Ref"
                             value={w.ref}
-                            onChange={(e) =>
-                              { updateWeight(rIdx, wIdx, { ref: sanitizeId(e.target.value) }); }
-                            }
-                            disabled={readOnly}
+                            disabled
                             size="small"
                             sx={{ flex: 1 }}
-                            placeholder={wIdx >= 1 ? '.01' : undefined}
-                            slotProps={{ htmlInput: { maxLength: MAX_ID_LENGTH } }}
+                            helperText="Auto-generated"
                           />
                           <TextField
                             label="Weight"
