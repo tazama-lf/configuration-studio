@@ -201,12 +201,15 @@ const NetworkMapPage: React.FC = () => {
       return;
     }
     if (!isValidConfigVersion(formData.cfg)) {
-      showError("Validation error", "Config Version must contain only digits and dots (e.g. 1.0.0)");
+      showError(
+        "Validation error",
+        "Config Version must contain only digits and dots (e.g. 1.0.0)",
+      );
       return;
     }
     let parsedMessages: unknown = [];
     try {
-      parsedMessages = JSON.parse(formData.messages || "[]");
+      parsedMessages = JSON.parse(formData.messages);
     } catch {
       showError("Validation error", "Messages must be valid JSON");
       return;
@@ -231,8 +234,8 @@ const NetworkMapPage: React.FC = () => {
       if (dialogMode === "create") {
         await configApi.create("network_map", payload);
         showSuccess("Network map created successfully");
-      } else if (dialogMode === "edit" && selectedRecord) {
-        await configApi.update("network_map", "", selectedRecord.cfg, payload);
+      } else {
+        await configApi.update("network_map", "", formData.cfg, payload);
         showSuccess("Network map updated successfully");
       }
       setDialogOpen(false);
@@ -244,11 +247,10 @@ const NetworkMapPage: React.FC = () => {
     }
   };
 
-  const handleDeleteConfirm = async () => {
-    if (!recordToDelete) return;
+  const handleDeleteConfirm = async (record: NetworkMapRecord) => {
     setActionLoading(true);
     try {
-      await configApi.delete("network_map", "", recordToDelete.cfg);
+      await configApi.delete("network_map", "", record.cfg);
       showSuccess("Network map deleted successfully");
       setDeleteDialogOpen(false);
       setRecordToDelete(null);
@@ -409,50 +411,52 @@ const NetworkMapPage: React.FC = () => {
         </DialogTitle>
         <DialogContent>
           <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, gap: 2, mt: 1 }}>
-          <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
-            <TextField
-              label="Config Version"
-              value={formData.cfg}
-              onChange={(e) => setFormData({ ...formData, cfg: e.target.value.replace(/[^0-9.]/g, "") })}
-              disabled={isReadOnly || dialogMode === "edit"}
-              required
-              fullWidth
-              error={cfgInvalid}
-              slotProps={{ htmlInput: { maxLength: MAX_CONFIG_VERSION_LENGTH } }}
-              helperText={
-                dialogMode === "edit"
-                  ? "Config version cannot be changed"
-                  : cfgInvalid
-                    ? "Config Version must contain only digits and dots (e.g. 1.0.0)"
-                    : undefined
-              }
-            />
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={formData.active}
-                  onChange={(e) => setFormData({ ...formData, active: e.target.checked })}
-                  disabled={isReadOnly}
-                />
-              }
-              label="Active"
-            />
-            <Divider />
-            <NetworkMapConfigEditor
-              key={`${dialogMode}-${selectedRecord?.cfg ?? "new"}`}
-              value={formData.messages}
-              onChange={(json) => setFormData({ ...formData, messages: json })}
-              readOnly={isReadOnly}
-              cfg={formData.cfg}
-              active={formData.active}
-              tenantId={tenantId}
-              hideJsonPreview
-              onPreviewChange={setPreviewJson}
-            />
-          </Box>
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            <JsonPreviewPanel json={previewJson} />
-          </Box>
+            <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
+              <TextField
+                label="Config Version"
+                value={formData.cfg}
+                onChange={(e) =>
+                  setFormData({ ...formData, cfg: e.target.value.replace(/[^0-9.]/g, "") })
+                }
+                disabled={isReadOnly || dialogMode === "edit"}
+                required
+                fullWidth
+                error={cfgInvalid}
+                slotProps={{ htmlInput: { maxLength: MAX_CONFIG_VERSION_LENGTH } }}
+                helperText={
+                  dialogMode === "edit"
+                    ? "Config version cannot be changed"
+                    : cfgInvalid
+                      ? "Config Version must contain only digits and dots (e.g. 1.0.0)"
+                      : undefined
+                }
+              />
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={formData.active}
+                    onChange={(e) => setFormData({ ...formData, active: e.target.checked })}
+                    disabled={isReadOnly}
+                  />
+                }
+                label="Active"
+              />
+              <Divider />
+              <NetworkMapConfigEditor
+                key={`${dialogMode}-${selectedRecord?.cfg ?? "new"}`}
+                value={formData.messages}
+                onChange={(json) => setFormData({ ...formData, messages: json })}
+                readOnly={isReadOnly}
+                cfg={formData.cfg}
+                active={formData.active}
+                tenantId={tenantId}
+                hideJsonPreview
+                onPreviewChange={setPreviewJson}
+              />
+            </Box>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <JsonPreviewPanel json={previewJson} />
+            </Box>
           </Box>
         </DialogContent>
         <DialogActions>
@@ -466,31 +470,33 @@ const NetworkMapPage: React.FC = () => {
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog
-        open={deleteDialogOpen}
-        onClose={() => setDeleteDialogOpen(false)}
-        maxWidth="xs"
-        fullWidth
-      >
-        <DialogTitle>Confirm Delete</DialogTitle>
-        <DialogContent>
-          <Typography>
-            Are you sure you want to delete the network map with config version{" "}
-            <strong>{recordToDelete?.cfg}</strong>? This action cannot be undone.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
-          <Button
-            variant="contained"
-            color="error"
-            onClick={handleDeleteConfirm}
-            disabled={actionLoading}
-          >
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {recordToDelete && (
+        <Dialog
+          open={deleteDialogOpen}
+          onClose={() => setDeleteDialogOpen(false)}
+          maxWidth="xs"
+          fullWidth
+        >
+          <DialogTitle>Confirm Delete</DialogTitle>
+          <DialogContent>
+            <Typography>
+              Are you sure you want to delete the network map with config version{" "}
+              <strong>{recordToDelete.cfg}</strong>? This action cannot be undone.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+            <Button
+              variant="contained"
+              color="error"
+              onClick={() => void handleDeleteConfirm(recordToDelete)}
+              disabled={actionLoading}
+            >
+              Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
+      )}
 
       {/* Reload Mode Dialog */}
       <Dialog
