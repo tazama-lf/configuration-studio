@@ -1,75 +1,161 @@
 import { setupFetch401Interceptor } from '@/utils/common/interceptor';
 
+const LOGIN_URL = 'http://example.com/auth/login';
+const API_URL = 'http://example.com/config/rule';
+
+const mockResponse = (status: number, ok = status >= 200 && status < 300) =>
+  ({ ok, status, json: async () => ({}) }) as unknown as Response;
+
 describe('interceptor', () => {
-  it('calls navigateToLogin on 401 response', async () => {
-    const originalFetch = window.fetch;
-    const navigateToLogin = jest.fn();
-    const mockFetch = jest.fn().mockResolvedValue({
-      ok: true,
-      status: 401,
-      json: async () => ({}),
-    });
-    window.fetch = mockFetch as unknown as typeof fetch;
+  let originalFetch: typeof fetch;
+  let navigateToLogin: jest.Mock;
 
-    setupFetch401Interceptor(navigateToLogin);
-
-    await window.fetch('http://example.com/api');
-
-    // Wait for setTimeout(2000ms) to fire
-    await new Promise((resolve) => setTimeout(resolve, 2100));
-    expect(navigateToLogin).toHaveBeenCalled();
-
-    window.fetch = originalFetch;
+  beforeEach(() => {
+    originalFetch = window.fetch;
+    navigateToLogin = jest.fn();
+    jest.useFakeTimers();
   });
 
-  it('does not call navigateToLogin on non-401 response', async () => {
-    const originalFetch = window.fetch;
-    const navigateToLogin = jest.fn();
-    const mockFetch = jest.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => ({}),
-    });
-    window.fetch = mockFetch as unknown as typeof fetch;
+  afterEach(() => {
+    window.fetch = originalFetch;
+    jest.useRealTimers();
+  });
 
+  const install = (fetchImpl: jest.Mock): void => {
+    window.fetch = fetchImpl as unknown as typeof fetch;
     setupFetch401Interceptor(navigateToLogin);
+  };
 
-    await window.fetch('http://example.com/api');
+  it('calls navigateToLogin after the delay on a 401 from a config endpoint', async () => {
+    const mockFetch = jest.fn().mockResolvedValue(mockResponse(401, false));
+    install(mockFetch);
 
-    await new Promise((resolve) => setTimeout(resolve, 2100));
+    await window.fetch(API_URL);
+
     expect(navigateToLogin).not.toHaveBeenCalled();
-
-    window.fetch = originalFetch;
+    jest.advanceTimersByTime(2000);
+    expect(navigateToLogin).toHaveBeenCalledTimes(1);
   });
 
-  it('passes through response for non-401', async () => {
-    const originalFetch = window.fetch;
-    const navigateToLogin = jest.fn();
-    const mockResponse = { ok: true, status: 200, json: async () => ({ data: 'test' }) };
-    const mockFetch = jest.fn().mockResolvedValue(mockResponse);
-    window.fetch = mockFetch as unknown as typeof fetch;
+  it('does not call navigateToLogin on non-401 responses', async () => {
+    const mockFetch = jest.fn().mockResolvedValue(mockResponse(200));
+    install(mockFetch);
 
-    setupFetch401Interceptor(navigateToLogin);
+    await window.fetch(API_URL);
 
-    const response = await window.fetch('http://example.com/api');
-    expect(response).toBe(mockResponse);
+    jest.advanceTimersByTime(2100);
+    expect(navigateToLogin).not.toHaveBeenCalled();
+  });
 
-    window.fetch = originalFetch;
+  it('passes through the response for non-401', async () => {
+    const response = mockResponse(200);
+    const mockFetch = jest.fn().mockResolvedValue(response);
+    install(mockFetch);
+
+    expect(await window.fetch(API_URL)).toBe(response);
   });
 
   it('returns the 401 response as well', async () => {
-    const originalFetch = window.fetch;
-    const navigateToLogin = jest.fn();
-    const mockResponse = { ok: false, status: 401, json: async () => ({}) };
-    const mockFetch = jest.fn().mockResolvedValue(mockResponse);
-    window.fetch = mockFetch as unknown as typeof fetch;
+    const response = mockResponse(401, false);
+    const mockFetch = jest.fn().mockResolvedValue(response);
+    install(mockFetch);
 
-    setupFetch401Interceptor(navigateToLogin);
+    expect((await window.fetch(API_URL)).status).toBe(401);
+  });
 
-    const response = await window.fetch('http://example.com/api');
-    expect(response.status).toBe(401);
+  describe('login endpoint exclusion', () => {
+    it('never schedules a redirect for a 401 from the login endpoint', async () => {
+      const mockFetch = jest.fn().mockResolvedValue(mockResponse(401, false));
+      install(mockFetch);
 
-    await new Promise((resolve) => setTimeout(resolve, 2100));
-    window.fetch = originalFetch;
+      await window.fetch(LOGIN_URL);
+
+      jest.advanceTimersByTime(5000);
+      expect(navigateToLogin).not.toHaveBeenCalled();
+    });
+
+    it('does not redirect after a failed login followed by a successful login', async () => {
+      // The exact real-world sequence from the bug report: wrong password
+      // (401 from /auth/login), then a correct one (200 from /auth/login).
+      const mockFetch = jest
+        .fn()
+        .mockResolvedValueOnce(mockResponse(401, false))
+        .mockResolvedValueOnce(mockResponse(200));
+      install(mockFetch);
+
+      await window.fetch(LOGIN_URL); // failed attempt
+      await window.fetch(LOGIN_URL); // successful attempt
+
+      jest.advanceTimersByTime(5000);
+      expect(navigateToLogin).not.toHaveBeenCalled();
+    });
+
+    it('excludes the login endpoint when passed as a Request-like object', async () => {
+      const mockFetch = jest.fn().mockResolvedValue(mockResponse(401, false));
+      install(mockFetch);
+
+      // Request is not available in the jsdom test environment; the
+      // interceptor only reads `.url`, so a Request-like object is enough.
+      await window.fetch({ url: LOGIN_URL } as unknown as Request);
+
+      jest.advanceTimersByTime(5000);
+      expect(navigateToLogin).not.toHaveBeenCalled();
+    });
+
+    it('excludes the login endpoint when passed as a URL object', async () => {
+      const mockFetch = jest.fn().mockResolvedValue(mockResponse(401, false));
+      install(mockFetch);
+
+      await window.fetch(new URL(LOGIN_URL));
+
+      jest.advanceTimersByTime(5000);
+      expect(navigateToLogin).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('pending redirect cancellation', () => {
+    it('cancels a pending redirect when a later request succeeds', async () => {
+      const mockFetch = jest
+        .fn()
+        .mockResolvedValueOnce(mockResponse(401, false))
+        .mockResolvedValueOnce(mockResponse(200));
+      install(mockFetch);
+
+      await window.fetch(API_URL); // transient 401 schedules redirect
+      jest.advanceTimersByTime(1000);
+      await window.fetch(API_URL); // success cancels it
+
+      jest.advanceTimersByTime(5000);
+      expect(navigateToLogin).not.toHaveBeenCalled();
+    });
+
+    it('still redirects when no successful request follows the 401', async () => {
+      const mockFetch = jest.fn().mockResolvedValue(mockResponse(401, false));
+      install(mockFetch);
+
+      await window.fetch(API_URL);
+      jest.advanceTimersByTime(2000);
+
+      expect(navigateToLogin).toHaveBeenCalledTimes(1);
+    });
+
+    it('a new 401 replaces the pending redirect instead of stacking timers', async () => {
+      const mockFetch = jest.fn().mockResolvedValue(mockResponse(401, false));
+      install(mockFetch);
+
+      await window.fetch(API_URL);
+      jest.advanceTimersByTime(1000); // first timer has 1000ms left
+      await window.fetch(API_URL); // second 401 reschedules from now
+
+      // 1000ms more: the first timer would have fired here, but it was
+      // replaced — no redirect yet.
+      jest.advanceTimersByTime(1000);
+      expect(navigateToLogin).not.toHaveBeenCalled();
+
+      // Another 1000ms: the replacement timer fires — exactly one redirect.
+      jest.advanceTimersByTime(1000);
+      expect(navigateToLogin).toHaveBeenCalledTimes(1);
+    });
   });
 });
+
