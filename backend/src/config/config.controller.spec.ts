@@ -1,5 +1,6 @@
 import { Test, type TestingModule } from '@nestjs/testing';
 import {
+  BadRequestException,
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
@@ -99,10 +100,10 @@ describe('ConfigController', () => {
       );
     });
 
-    it('should throw Error for invalid table', async () => {
+    it('should throw BadRequestException for invalid table', async () => {
       await expect(
         controller.list('invalid-table', {}, mockUser as any),
-      ).rejects.toThrow('Invalid table: invalid-table');
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -121,10 +122,10 @@ describe('ConfigController', () => {
       );
     });
 
-    it('should throw Error for invalid table', async () => {
+    it('should throw BadRequestException for invalid table', async () => {
       await expect(
         controller.getById('invalid', 'id', 'cfg', mockUser as any),
-      ).rejects.toThrow('Invalid table: invalid');
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -143,10 +144,10 @@ describe('ConfigController', () => {
       );
     });
 
-    it('should throw Error for invalid table', async () => {
+    it('should throw BadRequestException for invalid table', async () => {
       await expect(
         controller.create('invalid', {}, mockUser as any),
-      ).rejects.toThrow('Invalid table: invalid');
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -167,10 +168,10 @@ describe('ConfigController', () => {
       );
     });
 
-    it('should throw Error for invalid table', async () => {
+    it('should throw BadRequestException for invalid table', async () => {
       await expect(
         controller.update('invalid', 'id', 'cfg', {}, mockUser as any),
-      ).rejects.toThrow('Invalid table: invalid');
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -189,10 +190,10 @@ describe('ConfigController', () => {
       );
     });
 
-    it('should throw Error for invalid table', async () => {
+    it('should throw BadRequestException for invalid table', async () => {
       await expect(
         controller.delete('invalid', 'id', 'cfg', mockUser as any),
-      ).rejects.toThrow('Invalid table: invalid');
+      ).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -304,31 +305,41 @@ describe('ConfigController', () => {
       );
     });
 
-  describe('edge cases and error propagation', () => {
-    it('should handle undefined tenantId and empty token gracefully', async () => {
-      const anonUser = { token: { tokenString: '' }, tenantId: undefined } as any;
-      mockConfigProxyService.list.mockResolvedValue({ data: [] });
+    describe('edge cases and error propagation', () => {
+      it('should handle undefined tenantId and empty token gracefully', async () => {
+        const anonUser = { token: { tokenString: '' }, tenantId: undefined } as any;
+        mockConfigProxyService.list.mockResolvedValue({ data: [] });
 
-      await controller.list('rule', {}, anonUser);
-      expect(configProxyService.list).toHaveBeenCalledWith('rule', '', {}, undefined);
+        await controller.list('rule', {}, anonUser);
+        expect(configProxyService.list).toHaveBeenCalledWith('rule', '', {}, undefined);
+      });
+
+      it('should pass null body through create and reload when provided', async () => {
+        mockConfigProxyService.create.mockResolvedValue({});
+        mockConfigProxyService.reload.mockResolvedValue({});
+
+        await controller.create('typology', null as unknown as Record<string, unknown>, mockUser as any);
+        expect(configProxyService.create).toHaveBeenCalledWith('typology', null, 'test-token', 'tenant-1');
+
+        await controller.reload(null as unknown as Record<string, unknown>, mockUser as any);
+        expect(configProxyService.reload).toHaveBeenCalledWith(null, 'test-token', 'tenant-1');
+      });
+
+      it('should propagate errors from proxy service calls', async () => {
+        mockConfigProxyService.getById.mockRejectedValue(new Error('proxy failure'));
+
+        await expect(controller.getById('rule', 'id', 'cfg', mockUser as any)).rejects.toThrow('proxy failure');
+      });
+
+      it('should respond with 400 and keep the message for an invalid table', async () => {
+        const error = await controller
+          .list('foobar', {}, mockUser as any)
+          .catch((thrown: unknown) => thrown as HttpException);
+
+        expect(error).toBeInstanceOf(BadRequestException);
+        expect((error as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
+        expect((error as Error).message).toBe('Invalid table: foobar');
+      });
     });
-
-    it('should pass null body through create and reload when provided', async () => {
-      mockConfigProxyService.create.mockResolvedValue({});
-      mockConfigProxyService.reload.mockResolvedValue({});
-
-      await controller.create('typology', null as unknown as Record<string, unknown>, mockUser as any);
-      expect(configProxyService.create).toHaveBeenCalledWith('typology', null, 'test-token', 'tenant-1');
-
-      await controller.reload(null as unknown as Record<string, unknown>, mockUser as any);
-      expect(configProxyService.reload).toHaveBeenCalledWith(null, 'test-token', 'tenant-1');
-    });
-
-    it('should propagate errors from proxy service calls', async () => {
-      mockConfigProxyService.getById.mockRejectedValue(new Error('proxy failure'));
-
-      await expect(controller.getById('rule', 'id', 'cfg', mockUser as any)).rejects.toThrow('proxy failure');
-    });
-  });
   });
 });

@@ -10,6 +10,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  BadRequestException,
 } from '@nestjs/common';
 import { ConfigProxyService, type ConfigTable } from './config-proxy.service';
 import { TazamaAuthGuard } from '../auth/tazama-auth.guard';
@@ -196,7 +197,7 @@ export class ConfigController {
   private resolveTable(tableParam: string): ConfigTable {
     const table = TABLES[tableParam];
     if (table === undefined) {
-      throw new Error(`Invalid table: ${tableParam}`);
+      throw new BadRequestException(`Invalid table: ${tableParam}`);
     }
     return table;
   }
