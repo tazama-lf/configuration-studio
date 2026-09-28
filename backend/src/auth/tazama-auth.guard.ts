@@ -35,10 +35,22 @@ export class TazamaAuthGuard implements CanActivate {
 
     const { requiredClaims, anyClaims } = this.getClaimsFromDecorators(context);
 
-    const validated = validateTokenAndClaims(token, [
-      ...requiredClaims,
-      ...anyClaims,
-    ]);
+    // validateTokenAndClaims throws a plain Error for an invalid/expired token,
+    // which Nest would otherwise surface as a 500. Convert it to a 401 so the
+    // client can react to an authentication failure rather than a server fault.
+    let validated: ClaimValidationResult;
+    try {
+      validated = validateTokenAndClaims(token, [
+        ...requiredClaims,
+        ...anyClaims,
+      ]);
+    } catch (error) {
+      this.logger.warn(
+        `Token validation failed: ${(error as Error).message}`,
+        logContext,
+      );
+      throw new UnauthorizedException('Invalid or expired token');
+    }
 
     const { status, valid, invalid } = this.evaluateClaimResult(
       requiredClaims,
