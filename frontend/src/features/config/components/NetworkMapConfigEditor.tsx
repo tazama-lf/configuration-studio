@@ -17,6 +17,8 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { configApi } from '../services/configApi';
+import { sanitizeId } from '../../../utils/validation';
+import { MAX_ID_LENGTH, MAX_CONFIG_VERSION_LENGTH, MAX_SHORT_VALUE_LENGTH } from '../../../utils/constants';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -46,6 +48,8 @@ interface NetworkMapConfigEditorProps {
   cfg?: string;
   active?: boolean;
   tenantId?: string;
+  hideJsonPreview?: boolean;
+  onPreviewChange?: (json: string) => void;
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -57,6 +61,8 @@ export default function NetworkMapConfigEditor({
   cfg,
   active,
   tenantId,
+  hideJsonPreview = false,
+  onPreviewChange,
 }: NetworkMapConfigEditorProps) {
   // Full typology records (to auto-load rules when selected)
   const [typologyRecords, setTypologyRecords] = useState<
@@ -128,6 +134,10 @@ export default function NetworkMapConfigEditor({
     }
   }, [generatedJson, onChange, value]);
 
+  useEffect(() => {
+    onPreviewChange?.(fullPreviewJson);
+  }, [fullPreviewJson, onPreviewChange]);
+
   // ── Message helpers ──────────────────────────────────────────────────────
   const addMessage = () => {
     setMessages([
@@ -148,7 +158,7 @@ export default function NetworkMapConfigEditor({
   const addTypology = (msgIdx: number) => {
     const msg = messages[msgIdx];
     updateMessage(msgIdx, {
-      typologies: [...msg.typologies, { id: '', cfg: '', rules: [], tenantId: tenantId ?? 'DEFAULT' }],
+      typologies: [...msg.typologies, { id: '', cfg: '', rules: [], tenantId: tenantId ?? 'default' }],
     });
   };
 
@@ -227,25 +237,28 @@ export default function NetworkMapConfigEditor({
                   <TextField
                     label="Message ID"
                     value={msg.id}
-                    onChange={(e) => updateMessage(mIdx, { id: e.target.value })}
+                    onChange={(e) => updateMessage(mIdx, { id: sanitizeId(e.target.value) })}
                     disabled={readOnly}
                     size="small"
+                    slotProps={{ htmlInput: { maxLength: MAX_ID_LENGTH } }}
                     sx={{ flex: 1, minWidth: 180 }}
                   />
                   <TextField
                     label="Config Version"
                     value={msg.cfg}
-                    onChange={(e) => updateMessage(mIdx, { cfg: e.target.value })}
+                    onChange={(e) => updateMessage(mIdx, { cfg: e.target.value.replace(/[^0-9.]/g, '') })}
                     disabled={readOnly}
                     size="small"
+                    slotProps={{ htmlInput: { maxLength: MAX_CONFIG_VERSION_LENGTH } }}
                     sx={{ flex: 1, minWidth: 120 }}
                   />
                   <TextField
                     label="Transaction Type (txTp)"
                     value={msg.txTp}
-                    onChange={(e) => updateMessage(mIdx, { txTp: e.target.value })}
+                    onChange={(e) => updateMessage(mIdx, { txTp: sanitizeId(e.target.value) })}
                     disabled={readOnly}
                     size="small"
+                    slotProps={{ htmlInput: { maxLength: MAX_SHORT_VALUE_LENGTH } }}
                     sx={{ flex: 2, minWidth: 200 }}
                   />
                 </Box>
@@ -388,29 +401,30 @@ export default function NetworkMapConfigEditor({
         )}
       </Paper>
 
-      {/* JSON Preview */}
-      <Box>
-        <Paper variant="outlined" sx={{ p: 2, maxHeight: '40vh', overflow: 'auto' }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-            JSON Preview
-          </Typography>
-          <Divider sx={{ mb: 1 }} />
-          <Box
-            component="pre"
-            sx={{
-              fontFamily: 'monospace',
-              fontSize: '0.8rem',
-              lineHeight: 1.5,
-              color: '#374151',
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-              m: 0,
-            }}
-          >
-            {fullPreviewJson}
-          </Box>
-        </Paper>
-      </Box>
+      {!hideJsonPreview && (
+        <Box>
+          <Paper variant="outlined" sx={{ p: 2, maxHeight: '40vh', overflow: 'auto' }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+              JSON Preview
+            </Typography>
+            <Divider sx={{ mb: 1 }} />
+            <Box
+              component="pre"
+              sx={{
+                fontFamily: 'monospace',
+                fontSize: '0.8rem',
+                lineHeight: 1.5,
+                color: '#374151',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+                m: 0,
+              }}
+            >
+              {fullPreviewJson}
+            </Box>
+          </Paper>
+        </Box>
+      )}
     </Box>
   );
 }

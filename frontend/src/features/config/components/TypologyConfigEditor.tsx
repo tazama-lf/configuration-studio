@@ -18,6 +18,8 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { configApi } from '../services/configApi';
+import { sanitizeId, getNextSubRuleRef } from '../../../utils/validation';
+import { MAX_ID_LENGTH } from '../../../utils/constants';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -47,6 +49,8 @@ interface TypologyConfigEditorProps {
   cfg?: string;
   desc?: string;
   tenantId?: string;
+  hideJsonPreview?: boolean;
+  onPreviewChange?: (json: string) => void;
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -59,6 +63,8 @@ export default function TypologyConfigEditor({
   cfg,
   desc,
   tenantId,
+  hideJsonPreview = false,
+  onPreviewChange,
 }: TypologyConfigEditorProps) {
   // Rule options fetched from the rules table — stored as { id, cfg, desc }
   const [ruleOptions, setRuleOptions] = useState<
@@ -153,6 +159,10 @@ export default function TypologyConfigEditor({
     }
   }, [generatedConfig, onChange, value]);
 
+  useEffect(() => {
+    onPreviewChange?.(fullPreviewJson);
+  }, [fullPreviewJson, onPreviewChange]);
+
   // ── Rule helpers ─────────────────────────────────────────────────────────
   const addRule = () => {
     setRules([
@@ -172,7 +182,11 @@ export default function TypologyConfigEditor({
   // ── Weight helpers ───────────────────────────────────────────────────────
   const addWeight = (ruleIdx: number) => {
     const rule = rules[ruleIdx];
-    updateRule(ruleIdx, { wghts: [...rule.wghts, { ref: '', wght: 0 }] });
+    const ref = getNextSubRuleRef(
+      rule.wghts.map((w) => w.ref),
+      { start: 1 },
+    );
+    updateRule(ruleIdx, { wghts: [...rule.wghts, { ref, wght: 0 }] });
   };
 
   const updateWeight = (
@@ -400,6 +414,7 @@ export default function TypologyConfigEditor({
                       fullWidth
                       required
                       placeholder="v001at100at100"
+                      slotProps={{ htmlInput: { maxLength: MAX_ID_LENGTH } }}
                     />
 
                     {/* Weights */}
@@ -441,13 +456,10 @@ export default function TypologyConfigEditor({
                           <TextField
                             label="Ref"
                             value={w.ref}
-                            onChange={(e) =>
-                              { updateWeight(rIdx, wIdx, { ref: e.target.value }); }
-                            }
-                            disabled={readOnly}
+                            disabled
                             size="small"
                             sx={{ flex: 1 }}
-                            placeholder={wIdx >= 1 ? '.01' : undefined}
+                            helperText="Auto-generated"
                           />
                           <TextField
                             label="Weight"
@@ -617,44 +629,46 @@ export default function TypologyConfigEditor({
               label="Flow Processor"
               value={workflow.flowProcessor}
               onChange={(e) =>
-                { setWorkflow({ ...workflow, flowProcessor: e.target.value }); }
+                { setWorkflow({ ...workflow, flowProcessor: sanitizeId(e.target.value) }); }
               }
               disabled={readOnly}
               size="small"
               fullWidth
               placeholder="EFRuP@1.0.0"
               helperText="Rule that acts as the flow processor"
+              slotProps={{ htmlInput: { maxLength: MAX_ID_LENGTH } }}
             />
           </Box>
         </Paper>
       </Box>
 
-      {/* JSON Preview */}
-      <Box>
-        <Paper
-          variant="outlined"
-          sx={{ p: 2, maxHeight: '40vh', overflow: 'auto' }}
-        >
-          <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-            JSON Preview
-          </Typography>
-          <Divider sx={{ mb: 1 }} />
-          <Box
-            component="pre"
-            sx={{
-              fontFamily: 'monospace',
-              fontSize: '0.8rem',
-              lineHeight: 1.5,
-              color: '#374151',
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-              m: 0,
-            }}
+      {!hideJsonPreview && (
+        <Box>
+          <Paper
+            variant="outlined"
+            sx={{ p: 2, maxHeight: '40vh', overflow: 'auto' }}
           >
-            {fullPreviewJson}
-          </Box>
-        </Paper>
-      </Box>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+              JSON Preview
+            </Typography>
+            <Divider sx={{ mb: 1 }} />
+            <Box
+              component="pre"
+              sx={{
+                fontFamily: 'monospace',
+                fontSize: '0.8rem',
+                lineHeight: 1.5,
+                color: '#374151',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+                m: 0,
+              }}
+            >
+              {fullPreviewJson}
+            </Box>
+          </Paper>
+        </Box>
+      )}
     </Box>
   );
 }

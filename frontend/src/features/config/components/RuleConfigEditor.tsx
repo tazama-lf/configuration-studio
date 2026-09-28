@@ -13,6 +13,10 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
+import { sanitizeId, getNextSubRuleRef } from '../../../utils/validation';
+import { MAX_ID_LENGTH, MAX_REASON_LENGTH, MAX_SHORT_VALUE_LENGTH } from '../../../utils/constants';
+
+const VALID_DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'] as const;
 
 // ── Known parameter keys (from Tazama rule configurations) ────────────────
 
@@ -74,6 +78,8 @@ interface RuleConfigEditorProps {
   cfg?: string;
   desc?: string;
   tenantId?: string;
+  hideJsonPreview?: boolean;
+  onPreviewChange?: (json: string) => void;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -141,7 +147,7 @@ function parseConfig(json: string): {
 
 // ── Component ──────────────────────────────────────────────────────────────
 
-const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, readOnly = false, id = '', cfg = '', desc = '', tenantId = '' }) => {
+const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, readOnly = false, id = '', cfg = '', desc = '', tenantId = '', hideJsonPreview = false, onPreviewChange }) => {
   const initial = useMemo(() => parseConfig(value), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [configType, setConfigType] = useState<ConfigType>(initial.configType);
@@ -216,6 +222,10 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
     onChange(fullPreviewJson);
   }, [fullPreviewJson]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    onPreviewChange?.(fullPreviewJson);
+  }, [fullPreviewJson, onPreviewChange]);
+
   // ── Handlers: Parameters ───────────────────────────────────────────────
 
   const addParameter = (): void => {
@@ -233,7 +243,11 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
   // ── Handlers: Exit Conditions ──────────────────────────────────────────
 
   const addExitCondition = (): void => {
-    setExitConditions([...exitConditions, { subRuleRef: '', reason: '' }]);
+    const subRuleRef = getNextSubRuleRef(
+      exitConditions.map((ec) => ec.subRuleRef),
+      { prefix: 'X', start: 0 },
+    );
+    setExitConditions([...exitConditions, { subRuleRef, reason: '' }]);
   };
   const updateExitCondition = (idx: number, field: keyof ExitCondition, val: string): void => {
     const next = [...exitConditions];
@@ -261,7 +275,11 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
   // ── Handlers: Bands ────────────────────────────────────────────────────
 
   const addBand = (): void => {
-    setBands([...bands, { subRuleRef: '', reason: '' }]);
+    const subRuleRef = getNextSubRuleRef(
+      bands.map((b) => b.subRuleRef),
+      { start: 1 },
+    );
+    setBands([...bands, { subRuleRef, reason: '' }]);
   };
   const updateBand = (idx: number, field: keyof Band, val: string | number | undefined): void => {
     const next = [...bands];
@@ -275,7 +293,11 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
   // ── Handlers: Case Expressions ─────────────────────────────────────────
 
   const addCaseExpression = (): void => {
-    setCaseExpressions([...caseExpressions, { value: '', reason: '', subRuleRef: '' }]);
+    const subRuleRef = getNextSubRuleRef(
+      caseExpressions.map((ce) => ce.subRuleRef),
+      { start: 1 },
+    );
+    setCaseExpressions([...caseExpressions, { value: '', reason: '', subRuleRef }]);
   };
   const updateCaseExpression = (idx: number, field: keyof CaseExpression, val: string): void => {
     const next = [...caseExpressions];
@@ -338,6 +360,7 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
             </TextField>
             <TextField
               size="small"
+              type="number"
               label="Value"
               placeholder="123"
               value={p.value}
@@ -372,10 +395,9 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
             <TextField
               size="small"
               label="Sub Rule Ref"
-              placeholder=".x00"
               value={ec.subRuleRef}
-              onChange={(e) => updateExitCondition(idx, 'subRuleRef', e.target.value)}
-              disabled={readOnly}
+              disabled
+              helperText="Auto-generated"
               InputLabelProps={{ shrink: true }}
               sx={{ flex: 1 }}
             />
@@ -386,6 +408,7 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
               value={ec.reason}
               onChange={(e) => updateExitCondition(idx, 'reason', e.target.value)}
               disabled={readOnly}
+              slotProps={{ htmlInput: { maxLength: MAX_REASON_LENGTH } }}
               InputLabelProps={{ shrink: true }}
               sx={{ flex: 2 }}
             />
@@ -414,8 +437,8 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
           <Box key={idx} sx={{ ...rowSx, flexWrap: 'wrap' }}>
             <TextField
               size="small"
+              type="time"
               label="Start"
-              placeholder="00:00"
               value={tf.start}
               onChange={(e) => updateTimeframe(idx, 'start', e.target.value)}
               disabled={readOnly}
@@ -424,8 +447,8 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
             />
             <TextField
               size="small"
+              type="time"
               label="End"
-              placeholder="23:59"
               value={tf.end}
               onChange={(e) => updateTimeframe(idx, 'end', e.target.value)}
               disabled={readOnly}
@@ -433,15 +456,25 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
               sx={{ flex: 1, minWidth: 100 }}
             />
             <TextField
+              select
               size="small"
-              label="Days (comma-separated)"
-              placeholder="MON,TUE,WED"
-              value={(tf.days ?? []).join(',')}
-              onChange={(e) => updateTimeframe(idx, 'days', e.target.value.split(',').map((d) => d.trim()).filter(Boolean))}
+              label="Days"
+              value={tf.days ?? []}
+              onChange={(e) => updateTimeframe(idx, 'days', e.target.value as unknown as string[])}
               disabled={readOnly}
+              SelectProps={{
+                multiple: true,
+                renderValue: (selected) => (selected as string[]).join(', '),
+              }}
               InputLabelProps={{ shrink: true }}
               sx={{ flex: 2, minWidth: 200 }}
-            />
+            >
+              {VALID_DAYS.map((day) => (
+                <MenuItem key={day} value={day}>
+                  {day}
+                </MenuItem>
+              ))}
+            </TextField>
             {!readOnly && (
               <IconButton size="small" color="error" onClick={() => removeTimeframe(idx)}>
                 <DeleteIcon fontSize="small" />
@@ -469,10 +502,9 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
               <TextField
                 size="small"
                 label="Sub Rule Ref"
-                placeholder=".01"
                 value={b.subRuleRef}
-                onChange={(e) => updateBand(idx, 'subRuleRef', e.target.value)}
-                disabled={readOnly}
+                disabled
+                helperText="Auto-generated"
                 InputLabelProps={{ shrink: true }}
                 sx={{ flex: 1, minWidth: 120 }}
               />
@@ -483,6 +515,7 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
                 value={b.reason}
                 onChange={(e) => updateBand(idx, 'reason', e.target.value)}
                 disabled={readOnly}
+                slotProps={{ htmlInput: { maxLength: MAX_REASON_LENGTH } }}
                 InputLabelProps={{ shrink: true }}
                 sx={{ flex: 2, minWidth: 200 }}
               />
@@ -536,10 +569,9 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
               <TextField
                 size="small"
                 label="Sub Rule Ref"
-                placeholder=".01"
                 value={ce.subRuleRef}
-                onChange={(e) => updateCaseExpression(idx, 'subRuleRef', e.target.value)}
-                disabled={readOnly}
+                disabled
+                helperText="Auto-generated"
                 InputLabelProps={{ shrink: true }}
                 sx={{ flex: 1, minWidth: 120 }}
               />
@@ -550,6 +582,7 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
                 value={ce.value}
                 onChange={(e) => updateCaseExpression(idx, 'value', e.target.value)}
                 disabled={readOnly}
+                slotProps={{ htmlInput: { maxLength: MAX_SHORT_VALUE_LENGTH } }}
                 InputLabelProps={{ shrink: true }}
                 sx={{ flex: 1, minWidth: 100 }}
               />
@@ -560,6 +593,7 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
                 value={ce.reason}
                 onChange={(e) => updateCaseExpression(idx, 'reason', e.target.value)}
                 disabled={readOnly}
+                slotProps={{ htmlInput: { maxLength: MAX_REASON_LENGTH } }}
                 InputLabelProps={{ shrink: true }}
                 sx={{ flex: 2, minWidth: 200 }}
               />
@@ -588,8 +622,9 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
               label="Sub Rule Ref"
               placeholder=".00"
               value={caseAlternative.subRuleRef}
-              onChange={(e) => setCaseAlternative({ ...caseAlternative, subRuleRef: e.target.value })}
+              onChange={(e) => setCaseAlternative({ ...caseAlternative, subRuleRef: sanitizeId(e.target.value) })}
               disabled={readOnly}
+              slotProps={{ htmlInput: { maxLength: MAX_ID_LENGTH } }}
               InputLabelProps={{ shrink: true }}
               sx={{ flex: 1 }}
             />
@@ -600,6 +635,7 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
               value={caseAlternative.reason}
               onChange={(e) => setCaseAlternative({ ...caseAlternative, reason: e.target.value })}
               disabled={readOnly}
+              slotProps={{ htmlInput: { maxLength: MAX_REASON_LENGTH } }}
               InputLabelProps={{ shrink: true }}
               sx={{ flex: 2 }}
             />
@@ -607,36 +643,40 @@ const RuleConfigEditor: React.FC<RuleConfigEditorProps> = ({ value, onChange, re
         </Box>
       )}
 
-      <Divider sx={{ mb: 2 }} />
+      {!hideJsonPreview && (
+        <>
+          <Divider sx={{ mb: 2 }} />
 
-      {/* JSON Preview */}
-      <Box>
-        <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
-          JSON Preview (read-only)
-        </Typography>
-        <Paper
-          variant="outlined"
-          sx={{
-            p: 2,
-            backgroundColor: '#f5f5f5',
-            maxHeight: 300,
-            overflow: 'auto',
-          }}
-        >
-          <Typography
-            component="pre"
-            sx={{
-              fontFamily: 'monospace',
-              fontSize: '0.8rem',
-              whiteSpace: 'pre-wrap',
-              margin: 0,
-              color: '#374151',
-            }}
-          >
-            {fullPreviewJson}
-          </Typography>
-        </Paper>
-      </Box>
+          {/* JSON Preview */}
+          <Box>
+            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+              JSON Preview (read-only)
+            </Typography>
+            <Paper
+              variant="outlined"
+              sx={{
+                p: 2,
+                backgroundColor: '#f5f5f5',
+                maxHeight: 300,
+                overflow: 'auto',
+              }}
+            >
+              <Typography
+                component="pre"
+                sx={{
+                  fontFamily: 'monospace',
+                  fontSize: '0.8rem',
+                  whiteSpace: 'pre-wrap',
+                  margin: 0,
+                  color: '#374151',
+                }}
+              >
+                {fullPreviewJson}
+              </Typography>
+            </Paper>
+          </Box>
+        </>
+      )}
     </Box>
   );
 };

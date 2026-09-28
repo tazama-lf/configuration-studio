@@ -60,6 +60,7 @@ export default function Dashboard() {
         component="main"
         sx={(theme: any) => ({
           flexGrow: 1,
+          minWidth: 0,
           p: 3,
           transition: 'margin-left 225ms cubic-bezier(0.4,0,0.2,1)',
           ml: open ? `${drawerWidth}px` : `calc(${theme.spacing(7)} + 1px)`,

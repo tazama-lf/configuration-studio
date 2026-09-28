@@ -24,6 +24,9 @@ import { useToast } from '../../../shared/providers/ToastProvider';
 import { useAuth } from '../../auth/contexts/AuthContext';
 import { configApi } from '../services/configApi';
 import TypologyConfigEditor from '../components/TypologyConfigEditor';
+import JsonPreviewPanel from '../components/JsonPreviewPanel';
+import { sanitizeId, isValidConfigVersion } from '../../../utils/validation';
+import { MAX_ID_LENGTH, MAX_CONFIG_VERSION_LENGTH, MAX_DESCRIPTION_LENGTH } from '../../../utils/constants';
 
 interface TypologyRecord {
   id: string;
@@ -47,7 +50,7 @@ const PAGE_LIMIT = 20;
 const TypologyPage: React.FC = () => {
   const { showSuccess, showError } = useToast();
   const { user } = useAuth();
-  const tenantId = user?.tenantId ?? 'DEFAULT';
+  const tenantId = user?.tenantId ?? 'default';
   const tenantPrefix = `${tenantId}-typology-`;
   const [records, setRecords] = useState<TypologyRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -69,6 +72,7 @@ const TypologyPage: React.FC = () => {
     desc: '',
     config: '{}',
   });
+  const [previewJson, setPreviewJson] = useState('');
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -142,6 +146,10 @@ const TypologyPage: React.FC = () => {
       showError('Validation error', 'Config Version is required');
       return;
     }
+    if (!isValidConfigVersion(formData.cfg)) {
+      showError('Validation error', 'Config Version must contain only digits and dots (e.g. 1.0.0)');
+      return;
+    }
     if (!formData.desc.trim()) {
       showError('Validation error', 'Description is required');
       return;
@@ -198,6 +206,7 @@ const TypologyPage: React.FC = () => {
   };
 
   const isReadOnly = dialogMode === 'view';
+  const cfgInvalid = formData.cfg.length > 0 && !isValidConfigVersion(formData.cfg);
 
   const columns: GridColDef[] = [
     { field: 'id', headerName: 'ID', flex: 1, minWidth: 180 },
@@ -296,7 +305,8 @@ const TypologyPage: React.FC = () => {
           {dialogMode === 'create' ? 'Create Typology' : dialogMode === 'edit' ? 'Edit Typology' : 'View Typology'}
         </DialogTitle>
         <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, mt: 1 }}>
+          <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
             <Typography variant="body2" color="text.secondary">
               Define a typology that associates a set of rules with weights, an expression to combine
               their results, and workflow thresholds for alerting and interdiction.
@@ -305,11 +315,12 @@ const TypologyPage: React.FC = () => {
               <TextField
                 label="ID"
                 value={formData.id}
-                onChange={(e) => setFormData({ ...formData, id: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, id: sanitizeId(e.target.value) })}
                 disabled={isReadOnly || dialogMode === 'edit'}
                 required
                 fullWidth
                 placeholder="901"
+                slotProps={{ htmlInput: { maxLength: MAX_ID_LENGTH } }}
                 helperText={dialogMode === 'edit' ? 'ID cannot be changed' : undefined}
                 InputProps={
                   dialogMode === 'create'
@@ -328,12 +339,20 @@ const TypologyPage: React.FC = () => {
               <TextField
                 label="Config Version"
                 value={formData.cfg}
-                onChange={(e) => setFormData({ ...formData, cfg: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, cfg: e.target.value.replace(/[^0-9.]/g, '') })}
                 disabled={isReadOnly || dialogMode === 'edit'}
                 required
                 fullWidth
-                placeholder="901@1.0.0"
-                helperText={dialogMode === 'edit' ? 'Config version cannot be changed' : undefined}
+                placeholder="1.0.0"
+                error={cfgInvalid}
+                slotProps={{ htmlInput: { maxLength: MAX_CONFIG_VERSION_LENGTH } }}
+                helperText={
+                  dialogMode === 'edit'
+                    ? 'Config version cannot be changed'
+                    : cfgInvalid
+                      ? 'Config Version must contain only digits and dots (e.g. 1.0.0)'
+                      : undefined
+                }
               />
             </Box>
             <TextField
@@ -344,6 +363,7 @@ const TypologyPage: React.FC = () => {
               required
               fullWidth
               placeholder="Typology for set of rules"
+              slotProps={{ htmlInput: { maxLength: MAX_DESCRIPTION_LENGTH } }}
             />
             <Divider />
             <TypologyConfigEditor
@@ -355,7 +375,13 @@ const TypologyPage: React.FC = () => {
               cfg={formData.cfg}
               desc={formData.desc}
               tenantId={tenantId}
+              hideJsonPreview
+              onPreviewChange={setPreviewJson}
             />
+          </Box>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <JsonPreviewPanel json={previewJson} />
+          </Box>
           </Box>
         </DialogContent>
         <DialogActions>
@@ -363,7 +389,7 @@ const TypologyPage: React.FC = () => {
             {isReadOnly ? 'Close' : 'Cancel'}
           </Button>
           {!isReadOnly && (
-            <Button variant="contained" onClick={handleSave} disabled={actionLoading}>
+            <Button variant="contained" onClick={handleSave} disabled={actionLoading || cfgInvalid}>
               {dialogMode === 'create' ? 'Create' : 'Save'}
             </Button>
           )}

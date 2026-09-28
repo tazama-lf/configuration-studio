@@ -155,7 +155,7 @@ export class AuthApiService {
         'user',
       email: innerPayload.email ?? payload.email,
       claims: payload.claims ?? innerPayload.realm_access?.roles ?? [],
-      tenantId: payload.tenantId ?? innerPayload.tenantId,
+      tenantId: (payload.tenantId ?? innerPayload.tenantId)?.toLowerCase(),
     };
   }
 

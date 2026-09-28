@@ -23,6 +23,9 @@ import { useToast } from '../../../shared/providers/ToastProvider';
 import { useAuth } from '../../auth/contexts/AuthContext';
 import { configApi } from '../services/configApi';
 import RuleConfigEditor from '../components/RuleConfigEditor';
+import JsonPreviewPanel from '../components/JsonPreviewPanel';
+import { sanitizeId, isValidConfigVersion } from '../../../utils/validation';
+import { MAX_ID_LENGTH, MAX_CONFIG_VERSION_LENGTH, MAX_DESCRIPTION_LENGTH } from '../../../utils/constants';
 
 interface RuleRecord {
   id: string;
@@ -45,7 +48,7 @@ const PAGE_LIMIT = 20;
 const RulePage: React.FC = () => {
   const { showSuccess, showError } = useToast();
   const { user } = useAuth();
-  const tenantId = user?.tenantId ?? 'DEFAULT';
+  const tenantId = user?.tenantId ?? 'default';
   const tenantPrefix = `${tenantId}-`;
   const [records, setRecords] = useState<RuleRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -67,6 +70,7 @@ const RulePage: React.FC = () => {
     desc: '',
     config: '{}',
   });
+  const [previewJson, setPreviewJson] = useState('');
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -133,6 +137,10 @@ const RulePage: React.FC = () => {
     }
     if (!formData.cfg.trim()) {
       showError('Validation error', 'Config Version is required');
+      return;
+    }
+    if (!isValidConfigVersion(formData.cfg)) {
+      showError('Validation error', 'Config Version must contain only digits and dots (e.g. 1.0.0)');
       return;
     }
     if (!formData.desc.trim()) {
@@ -202,11 +210,33 @@ const RulePage: React.FC = () => {
   };
 
   const isReadOnly = dialogMode === 'view';
+  const cfgInvalid = formData.cfg.length > 0 && !isValidConfigVersion(formData.cfg);
+
+  const renderTruncatedCell = (text: string) => (
+    <Tooltip title={text} disableHoverListener={!text}>
+      <Box
+        sx={{
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          width: '100%',
+        }}
+      >
+        {text}
+      </Box>
+    </Tooltip>
+  );
 
   const columns: GridColDef[] = [
     { field: 'id', headerName: 'ID', flex: 1, minWidth: 150 },
     { field: 'cfg', headerName: 'Config Version', width: 130 },
-    { field: 'desc', headerName: 'Description', flex: 1.5, minWidth: 200 },
+    {
+      field: 'desc',
+      headerName: 'Description',
+      flex: 1.5,
+      minWidth: 200,
+      renderCell: (params: GridRenderCellParams) => renderTruncatedCell(params.value ?? ''),
+    },
     {
       field: 'config',
       headerName: 'Config',
@@ -220,7 +250,7 @@ const RulePage: React.FC = () => {
         if (config.exitConditions?.length) parts.push(`${config.exitConditions.length} exit conditions`);
         if (config.bands?.length) parts.push(`${config.bands.length} bands`);
         if (config.cases) parts.push('cases');
-        return parts.join(', ') || 'empty';
+        return renderTruncatedCell(parts.join(', ') || 'empty');
       },
     },
     { field: 'creDtTm', headerName: 'Created At', width: 180, type: 'string', valueFormatter: (value: unknown) => { if (!value) return ''; const d = new Date(value as string); return isNaN(d.getTime()) ? String(value) : d.toLocaleString(); } },
@@ -293,7 +323,7 @@ const RulePage: React.FC = () => {
       )}
 
       {/* Create / Edit / View Dialog */}
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="md" fullWidth>
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="lg" fullWidth>
         <DialogTitle>
           {dialogMode === 'create' ? 'Create Rule' : dialogMode === 'edit' ? 'Edit Rule' : 'View Rule'}
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, fontWeight: 400 }}>
@@ -305,15 +335,17 @@ const RulePage: React.FC = () => {
           </Typography>
         </DialogTitle>
         <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2, mt: 1 }}>
+          <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
             <TextField
               label="ID"
               placeholder="901@1.0.0"
               value={dialogMode === 'create' ? formData.id : formData.id}
-              onChange={(e) => setFormData({ ...formData, id: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, id: sanitizeId(e.target.value) })}
               disabled={isReadOnly || dialogMode === 'edit'}
               required
               fullWidth
+              slotProps={{ htmlInput: { maxLength: MAX_ID_LENGTH } }}
               InputLabelProps={{ shrink: true }}
               helperText={
                 dialogMode === 'edit'
@@ -338,11 +370,19 @@ const RulePage: React.FC = () => {
               label="Config Version"
               placeholder="1.0.0"
               value={formData.cfg}
-              onChange={(e) => setFormData({ ...formData, cfg: e.target.value })}
+              onChange={(e) => setFormData({ ...formData, cfg: e.target.value.replace(/[^0-9.]/g, '') })}
               disabled={isReadOnly || dialogMode === 'edit'}
               required
               fullWidth
-              helperText={dialogMode === 'edit' ? 'Config version cannot be changed' : undefined}
+              error={cfgInvalid}
+              helperText={
+                dialogMode === 'edit'
+                  ? 'Config version cannot be changed'
+                  : cfgInvalid
+                    ? 'Config Version must contain only digits and dots (e.g. 1.0.0)'
+                    : undefined
+              }
+              slotProps={{ htmlInput: { maxLength: MAX_CONFIG_VERSION_LENGTH } }}
               InputLabelProps={{ shrink: true }}
             />
             <TextField
@@ -353,6 +393,7 @@ const RulePage: React.FC = () => {
               disabled={isReadOnly}
               required
               fullWidth
+              slotProps={{ htmlInput: { maxLength: MAX_DESCRIPTION_LENGTH } }}
               InputLabelProps={{ shrink: true }}
             />
             <RuleConfigEditor
@@ -364,7 +405,13 @@ const RulePage: React.FC = () => {
               cfg={formData.cfg}
               desc={formData.desc}
               tenantId={tenantId}
+              hideJsonPreview
+              onPreviewChange={setPreviewJson}
             />
+          </Box>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <JsonPreviewPanel json={previewJson} />
+          </Box>
           </Box>
         </DialogContent>
         <DialogActions>
@@ -372,7 +419,7 @@ const RulePage: React.FC = () => {
             {isReadOnly ? 'Close' : 'Cancel'}
           </Button>
           {!isReadOnly && (
-            <Button variant="contained" onClick={handleSave} disabled={actionLoading}>
+            <Button variant="contained" onClick={handleSave} disabled={actionLoading || cfgInvalid}>
               {dialogMode === 'create' ? 'Create' : 'Save'}
             </Button>
           )}
