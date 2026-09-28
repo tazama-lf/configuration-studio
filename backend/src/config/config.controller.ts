@@ -13,6 +13,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { ConfigProxyService, type ConfigTable } from './config-proxy.service';
+import { validateConfigPayload } from './dto/config-payload.validator';
 import { TazamaAuthGuard } from '../auth/tazama-auth.guard';
 import { User } from '../auth/user.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
@@ -75,6 +76,7 @@ export class ConfigController {
     @User() user: AuthenticatedUser,
   ): Promise<unknown> {
     const table = this.resolveTable(tableParam);
+    validateConfigPayload(table, body);
     return await this.configProxyService.create(table, body, user.token.tokenString, user.tenantId);
   }
 
@@ -91,6 +93,7 @@ export class ConfigController {
     @User() user: AuthenticatedUser,
   ): Promise<unknown> {
     const table = this.resolveTable(tableParam);
+    validateConfigPayload(table, body);
     return await this.configProxyService.update(
       table,
       id,
@@ -112,6 +115,7 @@ export class ConfigController {
     @User() user: AuthenticatedUser,
   ): Promise<unknown> {
     const table = this.resolveTable('network-map');
+    validateConfigPayload(table, body);
     // For single-key tables the id path segment is not used by the proxy service.
     return await this.configProxyService.update(
       table,
