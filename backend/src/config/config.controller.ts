@@ -10,8 +10,10 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  BadRequestException,
 } from '@nestjs/common';
 import { ConfigProxyService, type ConfigTable } from './config-proxy.service';
+import { validateConfigPayload } from './dto/config-payload.validator';
 import { TazamaAuthGuard } from '../auth/tazama-auth.guard';
 import { User } from '../auth/user.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
@@ -74,6 +76,7 @@ export class ConfigController {
     @User() user: AuthenticatedUser,
   ): Promise<unknown> {
     const table = this.resolveTable(tableParam);
+    validateConfigPayload(table, body);
     return await this.configProxyService.create(table, body, user.token.tokenString, user.tenantId);
   }
 
@@ -90,6 +93,7 @@ export class ConfigController {
     @User() user: AuthenticatedUser,
   ): Promise<unknown> {
     const table = this.resolveTable(tableParam);
+    validateConfigPayload(table, body);
     return await this.configProxyService.update(
       table,
       id,
@@ -111,6 +115,7 @@ export class ConfigController {
     @User() user: AuthenticatedUser,
   ): Promise<unknown> {
     const table = this.resolveTable('network-map');
+    validateConfigPayload(table, body);
     // For single-key tables the id path segment is not used by the proxy service.
     return await this.configProxyService.update(
       table,
@@ -136,6 +141,21 @@ export class ConfigController {
   ): Promise<unknown> {
     const table = this.resolveTable(tableParam);
     return await this.configProxyService.delete(table, id, cfg, user.token.tokenString, user.tenantId);
+  }
+
+  /**
+   * Delete a network map by cfg (single-key table)
+   * DELETE /config/network-map/:cfg
+   */
+  @Delete('network-map/:cfg')
+  @HttpCode(HttpStatus.OK)
+  async deleteNetworkMap(
+    @Param('cfg') cfg: string,
+    @User() user: AuthenticatedUser,
+  ): Promise<unknown> {
+    const table = this.resolveTable('network-map');
+    // For single-key tables the id path segment is not used by the proxy service.
+    return await this.configProxyService.delete(table, '', cfg, user.token.tokenString, user.tenantId);
   }
 
   /**
@@ -181,7 +201,7 @@ export class ConfigController {
   private resolveTable(tableParam: string): ConfigTable {
     const table = TABLES[tableParam];
     if (table === undefined) {
-      throw new Error(`Invalid table: ${tableParam}`);
+      throw new BadRequestException(`Invalid table: ${tableParam}`);
     }
     return table;
   }

@@ -86,6 +86,7 @@ export class ConfigProxyService {
       (body as Record<string, unknown>).tenantId = tenantId;
     }
     const bodyWithTimestamps = this.injectTimestamps(body, false);
+    await this.preserveCreationTimestamp(table, id, cfg, bodyWithTimestamps, token, tenantId);
     return await this.adminServiceClient.executeHttpRequest('PUT', path, token, tenantId, bodyWithTimestamps);
   }
 
@@ -126,6 +127,10 @@ export class ConfigProxyService {
   /**
    * Deactivate a network map by cfg
    * POST /v1/admin/configuration/network_map/{cfg}/deactivate
+   *
+   * An explicit empty body must be forwarded (matching activate/reload),
+   * otherwise no Content-Type header is sent and the admin-service rejects
+   * the request with 415 Unsupported Media Type.
    */
   async deactivate(
     cfg: string,
@@ -134,7 +139,7 @@ export class ConfigProxyService {
   ): Promise<unknown> {
     const path = `/v1/admin/configuration/network_map/${encodeURIComponent(cfg)}/deactivate`;
     this.logger.log(`Deactivating network_map ${cfg}${tenantId ? ` [tenant: ${tenantId}]` : ''}`);
-    return await this.adminServiceClient.executeHttpRequest('POST', path, token, tenantId);
+    return await this.adminServiceClient.executeHttpRequest('POST', path, token, tenantId, {});
   }
 
   /**
@@ -154,7 +159,8 @@ export class ConfigProxyService {
   /**
    * Inject creDtTm and updDtTm timestamps into the request body.
    * On create: both creDtTm and updDtTm are set to the current time.
-   * On update: only updDtTm is refreshed; creDtTm is preserved if already present.
+   * On update: only updDtTm is refreshed; creDtTm is preserved by
+   * preserveCreationTimestamp().
    */
   private injectTimestamps(body: unknown, isCreate: boolean): unknown {
     if (body === null || typeof body !== 'object') {
@@ -169,6 +175,60 @@ export class ConfigProxyService {
       record.updDtTm = now;
     }
     return record;
+  }
+
+  /**
+   * Restore creDtTm on update.
+   *
+   * A PUT replaces the whole stored configuration, so any key the caller omits
+   * is deleted. The frontend builds its update payload from the form and does
+   * not carry creDtTm forward, which used to silently wipe the creation
+   * timestamp on every edit. When the caller did not supply one, read the
+   * stored record and merge its creDtTm back in.
+   */
+  private async preserveCreationTimestamp(
+    table: ConfigTable,
+    id: string,
+    cfg: string,
+    body: unknown,
+    token: string,
+    tenantId?: string,
+  ): Promise<void> {
+    if (!this.isPlainRecord(body) || body.creDtTm !== undefined) {
+      return;
+    }
+
+    const existing = await this.fetchExistingRecord(table, id, cfg, token, tenantId);
+    if (existing?.creDtTm !== undefined) {
+      body.creDtTm = existing.creDtTm;
+    }
+  }
+
+  /**
+   * Read the stored record so update() can preserve fields the caller omitted.
+   * Failures are non-fatal: the record may not exist yet, or admin-service may
+   * be unreachable, and the update itself is what reports those outcomes.
+   */
+  private async fetchExistingRecord(
+    table: ConfigTable,
+    id: string,
+    cfg: string,
+    token: string,
+    tenantId?: string,
+  ): Promise<Record<string, unknown> | undefined> {
+    try {
+      const existing = await this.getById(table, id, cfg, token, tenantId);
+      return this.isPlainRecord(existing) ? existing : undefined;
+    } catch (error) {
+      this.logger.warn(
+        `Could not read existing ${table} ${id}/${cfg} to preserve creDtTm: ${(error as Error).message}`,
+      );
+      return undefined;
+    }
+  }
+
+  private isPlainRecord(value: unknown): value is Record<string, unknown> {
+    return value !== null && typeof value === 'object';
   }
 
   /**

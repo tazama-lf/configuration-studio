@@ -323,6 +323,37 @@ describe('TazamaAuthGuard', () => {
 
       expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
     });
+
+    it('should throw UnauthorizedException (not a 500) when token validation throws', () => {
+      mockReflector(false);
+      (validateTokenAndClaims as jest.Mock).mockImplementation(() => {
+        throw new Error('401 Unauthorized - invalid token');
+      });
+
+      const context = createMockContext({
+        authorization: 'Bearer garbage.invalid.token',
+      });
+
+      expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
+      expect(() => guard.canActivate(context)).toThrow(
+        'Invalid or expired token',
+      );
+    });
+
+    it('should not leak the underlying validation error message to the client', () => {
+      mockReflector(false);
+      (validateTokenAndClaims as jest.Mock).mockImplementation(() => {
+        throw new Error('secret internal verification detail');
+      });
+
+      const context = createMockContext({
+        authorization: 'Bearer garbage.invalid.token',
+      });
+
+      expect(() => guard.canActivate(context)).not.toThrow(
+        'secret internal verification detail',
+      );
+    });
   });
 
   describe('canActivate - missing tenantId', () => {
