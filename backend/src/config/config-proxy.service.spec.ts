@@ -198,8 +198,15 @@ describe('ConfigProxyService', () => {
   });
 
   describe('update', () => {
+    /** The outgoing PUT call, skipping the GET used to preserve creDtTm. */
+    const putCall = (): unknown[] | undefined =>
+      mockAdminServiceClient.executeHttpRequest.mock.calls.find((c) => c[0] === 'PUT');
+
+    const sentBody = (): Record<string, unknown> =>
+      putCall()?.[4] as Record<string, unknown>;
+
     it('should call executeHttpRequest with PUT, path, and body', async () => {
-      const body = { name: 'updated' };
+      const body = { name: 'updated', creDtTm: '2020-01-01T00:00:00.000Z' };
       mockAdminServiceClient.executeHttpRequest.mockResolvedValue({ updated: true });
 
       await service.update('rule', 'rule-1', '1.0.0', body, 'token', 'tenant-1');
@@ -214,40 +221,40 @@ describe('ConfigProxyService', () => {
     });
 
     it('should use single-key path for network_map update (no id segment)', async () => {
-      const body = { name: 'updated-nm' };
+      const body = { name: 'updated-nm', creDtTm: '2020-01-01T00:00:00.000Z' };
       mockAdminServiceClient.executeHttpRequest.mockResolvedValue({});
 
       await service.update('network_map', 'ignored-id', '2.0.0', body, 'token', 'tenant-1');
 
-      const call = mockAdminServiceClient.executeHttpRequest.mock.calls[0];
-      expect(call[0]).toBe('PUT');
-      expect(call[1]).toBe('/v1/admin/configuration/network_map/2.0.0');
-      expect(call[2]).toBe('token');
-      expect(call[3]).toBe('tenant-1');
+      const call = putCall();
+      expect(call?.[0]).toBe('PUT');
+      expect(call?.[1]).toBe('/v1/admin/configuration/network_map/2.0.0');
+      expect(call?.[2]).toBe('token');
+      expect(call?.[3]).toBe('tenant-1');
     });
 
     it('should pass undefined tenantId when not provided', async () => {
       mockAdminServiceClient.executeHttpRequest.mockResolvedValue({});
 
-      await service.update('rule', 'rule-1', '1.0.0', {}, 'token');
+      await service.update('rule', 'rule-1', '1.0.0', { creDtTm: '2020-01-01T00:00:00.000Z' }, 'token');
 
-      const call = mockAdminServiceClient.executeHttpRequest.mock.calls[0];
-      expect(call[0]).toBe('PUT');
-      expect(call[1]).toBe('/v1/admin/configuration/rule/rule-1/1.0.0');
-      expect(call[2]).toBe('token');
-      expect(call[3]).toBeUndefined();
-      expect(call[4]).toHaveProperty('updDtTm');
-      expect(call[4]).toHaveProperty('tenantId', undefined);
+      const call = putCall();
+      expect(call?.[0]).toBe('PUT');
+      expect(call?.[1]).toBe('/v1/admin/configuration/rule/rule-1/1.0.0');
+      expect(call?.[2]).toBe('token');
+      expect(call?.[3]).toBeUndefined();
+      expect(call?.[4]).toHaveProperty('updDtTm');
+      expect(call?.[4]).toHaveProperty('tenantId', undefined);
     });
 
     it('should URL-encode id and cfg in update path', async () => {
       mockAdminServiceClient.executeHttpRequest.mockResolvedValue({});
 
-      await service.update('typology', 'id#1', 'cfg@2', {}, 'token');
+      await service.update('typology', 'id#1', 'cfg@2', { creDtTm: '2020-01-01T00:00:00.000Z' }, 'token');
 
-      const call = mockAdminServiceClient.executeHttpRequest.mock.calls[0];
-      expect(call[1]).toContain(encodeURIComponent('id#1'));
-      expect(call[1]).toContain(encodeURIComponent('cfg@2'));
+      const call = putCall();
+      expect(call?.[1]).toContain(encodeURIComponent('id#1'));
+      expect(call?.[1]).toContain(encodeURIComponent('cfg@2'));
     });
 
     it('should inject updDtTm on update and not overwrite creDtTm if present', async () => {
@@ -256,11 +263,9 @@ describe('ConfigProxyService', () => {
 
       await service.update('rule', 'rule-1', '1.0.0', body, 'token', 'tenant-1');
 
-      const call = mockAdminServiceClient.executeHttpRequest.mock.calls[0];
-      const sentBody = call[4] as Record<string, unknown>;
-      expect(sentBody).toHaveProperty('updDtTm');
-      expect(sentBody.creDtTm).toBe('2020-01-01T00:00:00.000Z');
-      expect(sentBody).toHaveProperty('tenantId', 'tenant-1');
+      expect(sentBody()).toHaveProperty('updDtTm');
+      expect(sentBody().creDtTm).toBe('2020-01-01T00:00:00.000Z');
+      expect(sentBody()).toHaveProperty('tenantId', 'tenant-1');
     });
 
     it('should return non-object bodies unchanged for injectTimestamps', async () => {
@@ -268,19 +273,18 @@ describe('ConfigProxyService', () => {
 
       await service.update('rule', 'rule-1', '1.0.0', 'a-string-body' as unknown as Record<string, unknown>, 'token');
 
-      const call = mockAdminServiceClient.executeHttpRequest.mock.calls[0];
-      expect(call[4]).toBe('a-string-body');
+      const call = putCall();
+      expect(call?.[4]).toBe('a-string-body');
     });
 
-    it('should inject timestamps on update when creDtTm missing', async () => {
+    it('should inject updDtTm on update when creDtTm missing', async () => {
       const body: Record<string, unknown> = { name: 'updated' };
       mockAdminServiceClient.executeHttpRequest.mockResolvedValue({});
 
       await service.update('rule', 'rule-1', '1.0.0', body, 'token');
 
-      const sent = mockAdminServiceClient.executeHttpRequest.mock.calls[0][4] as Record<string, unknown>;
-      expect(sent).toHaveProperty('updDtTm');
-      expect(sent).not.toHaveProperty('creDtTm');
+      expect(sentBody()).toHaveProperty('updDtTm');
+      expect(sentBody()).not.toHaveProperty('creDtTm');
     });
 
     it('should use single-key path for network_map update (no id segment)', async () => {
@@ -295,6 +299,92 @@ describe('ConfigProxyService', () => {
         'tenant-1',
         expect.objectContaining({ name: 'nm' }),
       );
+    });
+
+    it('should not read the stored record when the caller supplies creDtTm', async () => {
+      mockAdminServiceClient.executeHttpRequest.mockResolvedValue({});
+
+      await service.update('rule', 'rule-1', '1.0.0', { creDtTm: '2020-01-01T00:00:00.000Z' }, 'token', 'tenant-1');
+
+      const methods = mockAdminServiceClient.executeHttpRequest.mock.calls.map((c) => c[0]);
+      expect(methods).toEqual(['PUT']);
+    });
+
+    it('should preserve creDtTm from the stored record when the caller omits it', async () => {
+      mockAdminServiceClient.executeHttpRequest.mockImplementation((method: string) =>
+        method === 'GET'
+          ? Promise.resolve({ id: 'rule-1', creDtTm: '2020-01-01T00:00:00.000Z' })
+          : Promise.resolve({ updated: true }),
+      );
+
+      await service.update('rule', 'rule-1', '1.0.0', { name: 'updated' }, 'token', 'tenant-1');
+
+      expect(mockAdminServiceClient.executeHttpRequest).toHaveBeenCalledWith(
+        'GET',
+        '/v1/admin/configuration/rule/rule-1/1.0.0',
+        'token',
+        'tenant-1',
+      );
+      expect(sentBody().creDtTm).toBe('2020-01-01T00:00:00.000Z');
+      expect(sentBody()).toHaveProperty('updDtTm');
+    });
+
+    it('should read the single-key path when preserving creDtTm for network_map', async () => {
+      mockAdminServiceClient.executeHttpRequest.mockImplementation((method: string) =>
+        method === 'GET'
+          ? Promise.resolve({ cfg: '2.0.0', creDtTm: 'stored-creation-time' })
+          : Promise.resolve({}),
+      );
+
+      await service.update('network_map', 'ignored-id', '2.0.0', { name: 'nm' }, 'token', 'tenant-1');
+
+      expect(mockAdminServiceClient.executeHttpRequest).toHaveBeenCalledWith(
+        'GET',
+        '/v1/admin/configuration/network_map/2.0.0',
+        'token',
+        'tenant-1',
+      );
+      expect(sentBody().creDtTm).toBe('stored-creation-time');
+    });
+
+    it('should not add creDtTm when the stored record has none', async () => {
+      mockAdminServiceClient.executeHttpRequest.mockImplementation((method: string) =>
+        method === 'GET' ? Promise.resolve({ id: 'rule-1' }) : Promise.resolve({}),
+      );
+
+      await service.update('rule', 'rule-1', '1.0.0', { name: 'updated' }, 'token');
+
+      expect(sentBody()).not.toHaveProperty('creDtTm');
+    });
+
+    it('should ignore a non-object stored record when preserving creDtTm', async () => {
+      mockAdminServiceClient.executeHttpRequest.mockImplementation((method: string) =>
+        method === 'GET' ? Promise.resolve('not-an-object') : Promise.resolve({}),
+      );
+
+      await service.update('rule', 'rule-1', '1.0.0', { name: 'updated' }, 'token');
+
+      expect(sentBody()).not.toHaveProperty('creDtTm');
+    });
+
+    it('should still perform the update when the stored record cannot be read', async () => {
+      mockAdminServiceClient.executeHttpRequest.mockImplementation((method: string) =>
+        method === 'GET' ? Promise.reject(new Error('not found')) : Promise.resolve({ ok: true }),
+      );
+
+      const result = await service.update('rule', 'missing', '1.0.0', { name: 'updated' }, 'token');
+
+      expect(result).toEqual({ ok: true });
+      expect(sentBody()).not.toHaveProperty('creDtTm');
+    });
+
+    it('should not read the stored record for a non-object body', async () => {
+      mockAdminServiceClient.executeHttpRequest.mockResolvedValue({});
+
+      await service.update('rule', 'rule-1', '1.0.0', 'a-string-body' as unknown as Record<string, unknown>, 'token');
+
+      const methods = mockAdminServiceClient.executeHttpRequest.mock.calls.map((c) => c[0]);
+      expect(methods).toEqual(['PUT']);
     });
   });
 
