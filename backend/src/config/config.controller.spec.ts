@@ -196,6 +196,22 @@ describe('ConfigController', () => {
     });
   });
 
+  describe('deleteNetworkMap', () => {
+    it('should call configProxyService.delete with network_map, empty id, cfg, and token', async () => {
+      mockConfigProxyService.delete.mockResolvedValue({});
+
+      await controller.deleteNetworkMap('1.0.0', mockUser as any);
+
+      expect(configProxyService.delete).toHaveBeenCalledWith(
+        'network_map',
+        '',
+        '1.0.0',
+        'test-token',
+        'tenant-1',
+      );
+    });
+  });
+
   describe('activate', () => {
     it('should call configProxyService.activate with cfg, body, and token', async () => {
       const body = { reloadMode: 'broadcast' };

@@ -139,6 +139,21 @@ export class ConfigController {
   }
 
   /**
+   * Delete a network map by cfg (single-key table)
+   * DELETE /config/network-map/:cfg
+   */
+  @Delete('network-map/:cfg')
+  @HttpCode(HttpStatus.OK)
+  async deleteNetworkMap(
+    @Param('cfg') cfg: string,
+    @User() user: AuthenticatedUser,
+  ): Promise<unknown> {
+    const table = this.resolveTable('network-map');
+    // For single-key tables the id path segment is not used by the proxy service.
+    return await this.configProxyService.delete(table, '', cfg, user.token.tokenString, user.tenantId);
+  }
+
+  /**
    * Activate a network map by cfg
    * POST /config/network-map/:cfg/activate
    */
