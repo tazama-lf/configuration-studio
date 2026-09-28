@@ -271,5 +271,48 @@ describe('ConfigController', () => {
       await controller.delete('network-map', 'id', 'cfg', mockUser as any);
       expect(configProxyService.delete).toHaveBeenCalledWith('network_map', 'id', 'cfg', 'test-token', 'tenant-1');
     });
+
+    it('should call updateNetworkMap and pass empty id to proxy update', async () => {
+      const body = { name: 'nm' };
+      mockConfigProxyService.update.mockResolvedValue({});
+
+      await controller.updateNetworkMap('1.2.3', body, mockUser as any);
+
+      expect(configProxyService.update).toHaveBeenCalledWith(
+        'network_map',
+        '',
+        '1.2.3',
+        body,
+        'test-token',
+        'tenant-1',
+      );
+    });
+
+  describe('edge cases and error propagation', () => {
+    it('should handle undefined tenantId and empty token gracefully', async () => {
+      const anonUser = { token: { tokenString: '' }, tenantId: undefined } as any;
+      mockConfigProxyService.list.mockResolvedValue({ data: [] });
+
+      await controller.list('rule', {}, anonUser);
+      expect(configProxyService.list).toHaveBeenCalledWith('rule', '', {}, undefined);
+    });
+
+    it('should pass null body through create and reload when provided', async () => {
+      mockConfigProxyService.create.mockResolvedValue({});
+      mockConfigProxyService.reload.mockResolvedValue({});
+
+      await controller.create('typology', null as unknown as Record<string, unknown>, mockUser as any);
+      expect(configProxyService.create).toHaveBeenCalledWith('typology', null, 'test-token', 'tenant-1');
+
+      await controller.reload(null as unknown as Record<string, unknown>, mockUser as any);
+      expect(configProxyService.reload).toHaveBeenCalledWith(null, 'test-token', 'tenant-1');
+    });
+
+    it('should propagate errors from proxy service calls', async () => {
+      mockConfigProxyService.getById.mockRejectedValue(new Error('proxy failure'));
+
+      await expect(controller.getById('rule', 'id', 'cfg', mockUser as any)).rejects.toThrow('proxy failure');
+    });
+  });
   });
 });

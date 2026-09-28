@@ -106,6 +106,19 @@ describe('ConfigProxyService', () => {
       );
     });
 
+    it('should use single-key path for network_map (no id segment)', async () => {
+      mockAdminServiceClient.executeHttpRequest.mockResolvedValue({});
+
+      await service.getById('network_map', 'ignored-id', '1.0.0', 'token', 'tenant-1');
+
+      expect(mockAdminServiceClient.executeHttpRequest).toHaveBeenCalledWith(
+        'GET',
+        '/v1/admin/configuration/network_map/1.0.0',
+        'token',
+        'tenant-1',
+      );
+    });
+
     it('should pass undefined tenantId when not provided', async () => {
       mockAdminServiceClient.executeHttpRequest.mockResolvedValue({});
 
@@ -160,6 +173,28 @@ describe('ConfigProxyService', () => {
         body,
       );
     });
+
+    it('should inject timestamps on create and preserve tenantId field', async () => {
+      const body: Record<string, unknown> = { name: 'test' };
+      mockAdminServiceClient.executeHttpRequest.mockResolvedValue({});
+
+      await service.create('network_map', body, 'token', 'tenant-1');
+
+      const call = mockAdminServiceClient.executeHttpRequest.mock.calls[0];
+      const sentBody = call[4] as Record<string, unknown>;
+      expect(sentBody).toHaveProperty('creDtTm');
+      expect(sentBody).toHaveProperty('updDtTm');
+      expect(sentBody).toHaveProperty('tenantId', 'tenant-1');
+    });
+
+    it('should return non-object body unchanged on create', async () => {
+      mockAdminServiceClient.executeHttpRequest.mockResolvedValue({});
+
+      await service.create('network_map', 'string-body' as unknown as Record<string, unknown>, 'token');
+
+      const call = mockAdminServiceClient.executeHttpRequest.mock.calls[0];
+      expect(call[4]).toBe('string-body');
+    });
   });
 
   describe('update', () => {
@@ -176,6 +211,19 @@ describe('ConfigProxyService', () => {
         'tenant-1',
         body,
       );
+    });
+
+    it('should use single-key path for network_map update (no id segment)', async () => {
+      const body = { name: 'updated-nm' };
+      mockAdminServiceClient.executeHttpRequest.mockResolvedValue({});
+
+      await service.update('network_map', 'ignored-id', '2.0.0', body, 'token', 'tenant-1');
+
+      const call = mockAdminServiceClient.executeHttpRequest.mock.calls[0];
+      expect(call[0]).toBe('PUT');
+      expect(call[1]).toBe('/v1/admin/configuration/network_map/2.0.0');
+      expect(call[2]).toBe('token');
+      expect(call[3]).toBe('tenant-1');
     });
 
     it('should pass undefined tenantId when not provided', async () => {
@@ -201,6 +249,53 @@ describe('ConfigProxyService', () => {
       expect(call[1]).toContain(encodeURIComponent('id#1'));
       expect(call[1]).toContain(encodeURIComponent('cfg@2'));
     });
+
+    it('should inject updDtTm on update and not overwrite creDtTm if present', async () => {
+      const body: Record<string, unknown> = { name: 'original', creDtTm: '2020-01-01T00:00:00.000Z' };
+      mockAdminServiceClient.executeHttpRequest.mockResolvedValue({});
+
+      await service.update('rule', 'rule-1', '1.0.0', body, 'token', 'tenant-1');
+
+      const call = mockAdminServiceClient.executeHttpRequest.mock.calls[0];
+      const sentBody = call[4] as Record<string, unknown>;
+      expect(sentBody).toHaveProperty('updDtTm');
+      expect(sentBody.creDtTm).toBe('2020-01-01T00:00:00.000Z');
+      expect(sentBody).toHaveProperty('tenantId', 'tenant-1');
+    });
+
+    it('should return non-object bodies unchanged for injectTimestamps', async () => {
+      mockAdminServiceClient.executeHttpRequest.mockResolvedValue({});
+
+      await service.update('rule', 'rule-1', '1.0.0', 'a-string-body' as unknown as Record<string, unknown>, 'token');
+
+      const call = mockAdminServiceClient.executeHttpRequest.mock.calls[0];
+      expect(call[4]).toBe('a-string-body');
+    });
+
+    it('should inject timestamps on update when creDtTm missing', async () => {
+      const body: Record<string, unknown> = { name: 'updated' };
+      mockAdminServiceClient.executeHttpRequest.mockResolvedValue({});
+
+      await service.update('rule', 'rule-1', '1.0.0', body, 'token');
+
+      const sent = mockAdminServiceClient.executeHttpRequest.mock.calls[0][4] as Record<string, unknown>;
+      expect(sent).toHaveProperty('updDtTm');
+      expect(sent).not.toHaveProperty('creDtTm');
+    });
+
+    it('should use single-key path for network_map update (no id segment)', async () => {
+      mockAdminServiceClient.executeHttpRequest.mockResolvedValue({});
+
+      await service.update('network_map', 'ignored-id', '2.0.0', { name: 'nm' }, 'token', 'tenant-1');
+
+      expect(mockAdminServiceClient.executeHttpRequest).toHaveBeenCalledWith(
+        'PUT',
+        '/v1/admin/configuration/network_map/2.0.0',
+        'token',
+        'tenant-1',
+        expect.objectContaining({ name: 'nm' }),
+      );
+    });
   });
 
   describe('delete', () => {
@@ -217,6 +312,32 @@ describe('ConfigProxyService', () => {
       );
     });
 
+    it('should use composite-key path for rule delete (with id segment)', async () => {
+      mockAdminServiceClient.executeHttpRequest.mockResolvedValue({});
+
+      await service.delete('rule', 'rule-1', '1.0.0', 'token', 'tenant-1');
+
+      expect(mockAdminServiceClient.executeHttpRequest).toHaveBeenCalledWith(
+        'DELETE',
+        '/v1/admin/configuration/rule/rule-1/1.0.0',
+        'token',
+        'tenant-1',
+      );
+    });
+
+    it('should use composite-key path for typology delete (with id segment)', async () => {
+      mockAdminServiceClient.executeHttpRequest.mockResolvedValue({});
+
+      await service.delete('typology', 'typ-1', '1.0.0', 'token');
+
+      expect(mockAdminServiceClient.executeHttpRequest).toHaveBeenCalledWith(
+        'DELETE',
+        '/v1/admin/configuration/typology/typ-1/1.0.0',
+        'token',
+        undefined,
+      );
+    });
+
     it('should pass undefined tenantId when not provided', async () => {
       mockAdminServiceClient.executeHttpRequest.mockResolvedValue({});
 
@@ -225,6 +346,32 @@ describe('ConfigProxyService', () => {
       expect(mockAdminServiceClient.executeHttpRequest).toHaveBeenCalledWith(
         'DELETE',
         '/v1/admin/configuration/network_map/2.0.0',
+        'token',
+        undefined,
+      );
+    });
+
+    it('should use composite-key path for rule delete (with id segment)', async () => {
+      mockAdminServiceClient.executeHttpRequest.mockResolvedValue({});
+
+      await service.delete('rule', 'rule-1', '1.0.0', 'token', 'tenant-1');
+
+      expect(mockAdminServiceClient.executeHttpRequest).toHaveBeenCalledWith(
+        'DELETE',
+        '/v1/admin/configuration/rule/rule-1/1.0.0',
+        'token',
+        'tenant-1',
+      );
+    });
+
+    it('should use composite-key path for typology delete (with id segment)', async () => {
+      mockAdminServiceClient.executeHttpRequest.mockResolvedValue({});
+
+      await service.delete('typology', 'typ-1', '1.0.0', 'token');
+
+      expect(mockAdminServiceClient.executeHttpRequest).toHaveBeenCalledWith(
+        'DELETE',
+        '/v1/admin/configuration/typology/typ-1/1.0.0',
         'token',
         undefined,
       );

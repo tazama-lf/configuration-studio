@@ -175,5 +175,37 @@ describe('AuthController', () => {
         InternalServerErrorException,
       );
     });
+
+    it('should log warn when UnauthorizedException is thrown', async () => {
+      const error = new UnauthorizedException('Invalid credentials');
+      mockAuthService.login.mockRejectedValue(error);
+
+      const warnSpy = jest.fn();
+      (controller as any).logger = { warn: warnSpy };
+
+      await expect(controller.login(validBody)).rejects.toThrow(UnauthorizedException);
+      expect(warnSpy).toHaveBeenCalled();
+    });
+
+    it('should log error when ServiceUnavailableException is thrown', async () => {
+      const error = new ServiceUnavailableException('Service unavailable');
+      mockAuthService.login.mockRejectedValue(error);
+
+      const errorSpy = jest.fn();
+      (controller as any).logger = { error: errorSpy };
+
+      await expect(controller.login(validBody)).rejects.toThrow(ServiceUnavailableException);
+      expect(errorSpy).toHaveBeenCalled();
+    });
+
+    it('should log error for unexpected errors', async () => {
+      mockAuthService.login.mockRejectedValue(new Error('Some error'));
+
+      const errorSpy = jest.fn();
+      (controller as any).logger = { error: errorSpy };
+
+      await expect(controller.login(validBody)).rejects.toThrow(InternalServerErrorException);
+      expect(errorSpy).toHaveBeenCalled();
+    });
   });
 });

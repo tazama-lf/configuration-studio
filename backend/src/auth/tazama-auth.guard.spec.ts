@@ -214,6 +214,101 @@ describe('TazamaAuthGuard', () => {
       const request = context.switchToHttp().getRequest();
       expect(request.user.sourceIP).toBe('127.0.0.1');
     });
+
+    it('should handle inner token decode failure and use outer token', () => {
+      mockReflector(false);
+
+      // Make jwt.decode return a decoded outer token that contains an inner token string
+      // but throw when decoding the inner token to hit the inner catch block.
+      (jwt.decode as jest.Mock).mockImplementation((arg: string) => {
+        if (arg === 'inner.token') throw new Error('decode failed');
+        return {
+          tenantId: 'tenant1',
+          clientId: 'client1',
+          realm_access: { roles: ['editor'] },
+          preferred_username: 'user@example.com',
+          tokenString: 'inner.token',
+        };
+      });
+
+      const context = createMockContext({ authorization: `Bearer ${validToken}` });
+
+      // Spy on logger.debug by replacing guard logger
+      const debugSpy = jest.fn();
+      (guard as any).logger = { debug: debugSpy, warn: jest.fn() };
+
+      const result = guard.canActivate(context);
+      expect(result).toBe(true);
+      expect(debugSpy).toHaveBeenCalled();
+    });
+
+    it('should fall back to valid[0] for actorRole when realm roles do not match known roles', () => {
+      mockReflector(false, ['config:read']);
+
+      (validateTokenAndClaims as jest.Mock).mockReturnValue({
+        'config:read': true,
+      });
+      (jwt.decode as jest.Mock).mockReturnValue({
+        tenantId: 'tenant1',
+        clientId: 'client1',
+        realm_access: { roles: ['unknown-role'] },
+        preferred_username: 'user@example.com',
+      });
+
+      const context = createMockContext({
+        authorization: `Bearer ${validToken}`,
+      });
+
+      guard.canActivate(context);
+      const request = context.switchToHttp().getRequest();
+      // valid[0] should be 'config:read' since realm roles don't match
+      expect(request.user.actorRole).toBe('config:read');
+    });
+
+    it('should fallback to valid[0] for actorRole when realm roles do not match known roles', () => {
+      mockReflector(false, ['config:read']);
+
+      (validateTokenAndClaims as jest.Mock).mockReturnValue({
+        'config:read': true,
+      });
+      (jwt.decode as jest.Mock).mockReturnValue({
+        tenantId: 'tenant1',
+        clientId: 'client1',
+        realm_access: { roles: ['unknown-role'] },
+        preferred_username: 'user@example.com',
+      });
+
+      const context = createMockContext({
+        authorization: `Bearer ${validToken}`,
+      });
+
+      guard.canActivate(context);
+      const request = context.switchToHttp().getRequest();
+      // valid[0] is 'config:read' since that claim passed validation
+      expect(request.user.actorRole).toBe('config:read');
+    });
+
+    it('should fallback to valid[0] for actorRole when realm_access has no roles', () => {
+      mockReflector(false, ['config:read']);
+
+      (validateTokenAndClaims as jest.Mock).mockReturnValue({
+        'config:read': true,
+      });
+      (jwt.decode as jest.Mock).mockReturnValue({
+        tenantId: 'tenant1',
+        clientId: 'client1',
+        realm_access: {},
+        preferred_username: 'user@example.com',
+      });
+
+      const context = createMockContext({
+        authorization: `Bearer ${validToken}`,
+      });
+
+      guard.canActivate(context);
+      const request = context.switchToHttp().getRequest();
+      expect(request.user.actorRole).toBe('config:read');
+    });
   });
 
   describe('canActivate - invalid token format', () => {
@@ -263,6 +358,22 @@ describe('TazamaAuthGuard', () => {
       });
 
       expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
+    });
+  });
+
+  describe('private helpers', () => {
+    it('getClaimsFromDecorators returns empty arrays when none set', () => {
+      const helper = (guard as any).getClaimsFromDecorators.bind(guard);
+      const ctx = { getHandler: () => jest.fn(), getClass: () => class {} } as unknown as ExecutionContext;
+      const res = helper(ctx);
+      expect(res.requiredClaims).toEqual([]);
+      expect(res.anyClaims).toEqual([]);
+    });
+
+    it('evaluateClaimResult returns true when no required/any claims', () => {
+      const evalFn = (guard as any).evaluateClaimResult.bind(guard);
+      const out = evalFn([], [], {}, 'ctx');
+      expect(out.status).toBe(true);
     });
   });
 });
