@@ -482,7 +482,7 @@ describe('ConfigProxyService', () => {
   });
 
   describe('deactivate', () => {
-    it('should call executeHttpRequest with POST and correct deactivate path', async () => {
+    it('should call executeHttpRequest with POST, correct deactivate path and empty body', async () => {
       mockAdminServiceClient.executeHttpRequest.mockResolvedValue({ deactivated: true });
 
       await service.deactivate('1.0.0', 'token', 'tenant-1');
@@ -492,6 +492,7 @@ describe('ConfigProxyService', () => {
         '/v1/admin/configuration/network_map/1.0.0/deactivate',
         'token',
         'tenant-1',
+        {},
       );
     });
 
@@ -505,6 +506,7 @@ describe('ConfigProxyService', () => {
         '/v1/admin/configuration/network_map/1.0.0/deactivate',
         'token',
         undefined,
+        {},
       );
     });
   });

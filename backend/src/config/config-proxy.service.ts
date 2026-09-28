@@ -126,6 +126,10 @@ export class ConfigProxyService {
   /**
    * Deactivate a network map by cfg
    * POST /v1/admin/configuration/network_map/{cfg}/deactivate
+   *
+   * An explicit empty body must be forwarded (matching activate/reload),
+   * otherwise no Content-Type header is sent and the admin-service rejects
+   * the request with 415 Unsupported Media Type.
    */
   async deactivate(
     cfg: string,
@@ -134,7 +138,7 @@ export class ConfigProxyService {
   ): Promise<unknown> {
     const path = `/v1/admin/configuration/network_map/${encodeURIComponent(cfg)}/deactivate`;
     this.logger.log(`Deactivating network_map ${cfg}${tenantId ? ` [tenant: ${tenantId}]` : ''}`);
-    return await this.adminServiceClient.executeHttpRequest('POST', path, token, tenantId);
+    return await this.adminServiceClient.executeHttpRequest('POST', path, token, tenantId, {});
   }
 
   /**
