@@ -87,10 +87,7 @@ const NetworkMapPage: React.FC = () => {
         offset: page * PAGE_LIMIT,
       });
       setRecords(
-        result.data.map(
-          (r, idx) =>
-            ({ ...r, __rowId: `${r.cfg}-${idx}` }) as NetworkMapRecord & { __rowId: string },
-        ),
+        result.data.map((r, idx) => ({ ...r, __rowId: `${r.cfg}-${idx}` }) as NetworkMapRecord & { __rowId: string }),
       );
       setTotalRecords(result.meta.total);
     } catch (err) {
@@ -106,7 +103,11 @@ const NetworkMapPage: React.FC = () => {
 
   const handleCreateClick = () => {
     setDialogMode("create");
-    setFormData({ cfg: "1.0.0", active: true, messages: "[]", tenantId });
+    // Default to inactive: only one network map can be active per tenant, and
+    // creating with active=true fails with a raw DB constraint error whenever
+    // the tenant already has an active map. Maps are normally created
+    // inactive and activated explicitly afterwards.
+    setFormData({ cfg: "1.0.0", active: false, messages: "[]", tenantId });
     setDialogOpen(true);
   };
 
@@ -116,10 +117,7 @@ const NetworkMapPage: React.FC = () => {
     setFormData({
       cfg: record.cfg,
       active: record.active,
-      messages:
-        typeof record.messages === "string"
-          ? record.messages
-          : JSON.stringify(record.messages ?? [], null, 2),
+      messages: typeof record.messages === "string" ? record.messages : JSON.stringify(record.messages ?? [], null, 2),
       tenantId: record.tenantId ?? tenantId,
     });
     setDialogOpen(true);
@@ -131,10 +129,7 @@ const NetworkMapPage: React.FC = () => {
     setFormData({
       cfg: record.cfg,
       active: record.active,
-      messages:
-        typeof record.messages === "string"
-          ? record.messages
-          : JSON.stringify(record.messages ?? [], null, 2),
+      messages: typeof record.messages === "string" ? record.messages : JSON.stringify(record.messages ?? [], null, 2),
       tenantId: record.tenantId ?? tenantId,
     });
     setDialogOpen(true);
@@ -201,10 +196,7 @@ const NetworkMapPage: React.FC = () => {
       return;
     }
     if (!isValidConfigVersion(formData.cfg)) {
-      showError(
-        "Validation error",
-        "Config Version must contain only digits and dots (e.g. 1.0.0)",
-      );
+      showError("Validation error", "Config Version must contain only digits and dots (e.g. 1.0.0)");
       return;
     }
     let parsedMessages: unknown = [];
@@ -217,11 +209,18 @@ const NetworkMapPage: React.FC = () => {
     // Ensure messages is a JSON array — a common user mistake is pasting
     // a single object (for example a user record) instead of an array.
     if (!Array.isArray(parsedMessages)) {
-      showError(
-        "Validation error",
-        "Messages must be a JSON array (e.g. [] or [{ id: 'x', cfg: '1.0.0', ... }])",
-      );
+      showError("Validation error", "Messages must be a JSON array (e.g. [] or [{ id: 'x', cfg: '1.0.0', ... }])");
       return;
+    }
+    // Only one network map can be active per tenant (enforced by a unique DB
+    // index). Reject the save up front with a clear message instead of letting
+    // the raw constraint error through, mirroring the row-level Activate check.
+    if (formData.active) {
+      const activeMap = records.find((r) => r.active);
+      if (activeMap && activeMap.cfg !== formData.cfg) {
+        showError("Validation error", `Network map ${activeMap.cfg} is already active. Deactivate it first.`);
+        return;
+      }
     }
     setActionLoading(true);
     try {
@@ -415,9 +414,7 @@ const NetworkMapPage: React.FC = () => {
               <TextField
                 label="Config Version"
                 value={formData.cfg}
-                onChange={(e) =>
-                  setFormData({ ...formData, cfg: e.target.value.replace(/[^0-9.]/g, "") })
-                }
+                onChange={(e) => setFormData({ ...formData, cfg: e.target.value.replace(/[^0-9.]/g, "") })}
                 disabled={isReadOnly || dialogMode === "edit"}
                 required
                 fullWidth
@@ -471,17 +468,12 @@ const NetworkMapPage: React.FC = () => {
 
       {/* Delete Confirmation Dialog */}
       {recordToDelete && (
-        <Dialog
-          open={deleteDialogOpen}
-          onClose={() => setDeleteDialogOpen(false)}
-          maxWidth="xs"
-          fullWidth
-        >
+        <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)} maxWidth="xs" fullWidth>
           <DialogTitle>Confirm Delete</DialogTitle>
           <DialogContent>
             <Typography>
-              Are you sure you want to delete the network map with config version{" "}
-              <strong>{recordToDelete.cfg}</strong>? This action cannot be undone.
+              Are you sure you want to delete the network map with config version <strong>{recordToDelete.cfg}</strong>?
+              This action cannot be undone.
             </Typography>
           </DialogContent>
           <DialogActions>
@@ -499,17 +491,10 @@ const NetworkMapPage: React.FC = () => {
       )}
 
       {/* Reload Mode Dialog */}
-      <Dialog
-        open={reloadDialogOpen}
-        onClose={() => setReloadDialogOpen(false)}
-        maxWidth="xs"
-        fullWidth
-      >
+      <Dialog open={reloadDialogOpen} onClose={() => setReloadDialogOpen(false)} maxWidth="xs" fullWidth>
         <DialogTitle>Reload Network Map</DialogTitle>
         <DialogContent>
-          <Typography sx={{ mb: 2 }}>
-            Choose a reload mode to re-dispatch the active network map:
-          </Typography>
+          <Typography sx={{ mb: 2 }}>Choose a reload mode to re-dispatch the active network map:</Typography>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
             <Button
               variant="outlined"

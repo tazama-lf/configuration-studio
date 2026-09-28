@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import NetworkMapPage from "@/features/config/pages/NetworkMapPage";
 
@@ -69,15 +69,9 @@ const mockList = configApi.list as jest.MockedFunction<typeof configApi.list>;
 const mockCreate = configApi.create as jest.MockedFunction<typeof configApi.create>;
 const mockUpdate = configApi.update as jest.MockedFunction<typeof configApi.update>;
 const mockDelete = configApi.delete as jest.MockedFunction<typeof configApi.delete>;
-const mockActivate = configApi.activateNetworkMap as jest.MockedFunction<
-  typeof configApi.activateNetworkMap
->;
-const mockDeactivate = configApi.deactivateNetworkMap as jest.MockedFunction<
-  typeof configApi.deactivateNetworkMap
->;
-const mockReload = configApi.reloadNetworkMap as jest.MockedFunction<
-  typeof configApi.reloadNetworkMap
->;
+const mockActivate = configApi.activateNetworkMap as jest.MockedFunction<typeof configApi.activateNetworkMap>;
+const mockDeactivate = configApi.deactivateNetworkMap as jest.MockedFunction<typeof configApi.deactivateNetworkMap>;
+const mockReload = configApi.reloadNetworkMap as jest.MockedFunction<typeof configApi.reloadNetworkMap>;
 
 const clickAction = (title: string, index = 0) => {
   const tooltips = screen.getAllByTitle(title);
@@ -207,6 +201,72 @@ describe("NetworkMapPage", () => {
     await waitFor(() => expect(mockShowSuccess).toHaveBeenCalled());
   });
 
+  it("defaults the create dialog's Active switch to off", async () => {
+    renderPage();
+    fireEvent.click(screen.getByText("Create New"));
+    await waitFor(() => expect(screen.getByText("Create Network Map")).toBeInTheDocument());
+    // Read the checked prop from the mocked Switch's React props
+    const switchEl = screen.getByTestId("mui-switch");
+    const propKeys = Object.keys(switchEl).filter((k) => k.startsWith("__reactProps"));
+    const props = (switchEl as any)[propKeys[0]];
+    expect(props.checked).toBe(false);
+  });
+
+  it("creates with active=false by default so it cannot clash with the tenant's active map", async () => {
+    renderPage();
+    fireEvent.click(screen.getByText("Create New"));
+    await waitFor(() => expect(screen.getByText("Create")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Create"));
+    await waitFor(() => expect(mockCreate).toHaveBeenCalled());
+    expect(mockCreate).toHaveBeenCalledWith("network_map", expect.objectContaining({ active: false }));
+  });
+
+  it("blocks saving an active map when the tenant already has one", async () => {
+    // testData[0] (cfg 1.0.0) is already active; create a DIFFERENT cfg so the
+    // conflict check actually applies (same-cfg is treated as an update of
+    // the active map itself and is allowed).
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId("row-0")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Create New"));
+    await waitFor(() => expect(screen.getByText("Create")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("Config Version"), { target: { value: "9.9.9" } });
+    // Turn the Active switch on
+    const switchEl = screen.getByTestId("mui-switch");
+    const propKeys = Object.keys(switchEl).filter((k) => k.startsWith("__reactProps"));
+    const props = (switchEl as any)[propKeys[0]];
+    act(() => {
+      props.onChange({ target: { checked: true } });
+    });
+    fireEvent.click(screen.getByText("Create"));
+    await waitFor(() =>
+      expect(mockShowError).toHaveBeenCalledWith(
+        "Validation error",
+        "Network map 1.0.0 is already active. Deactivate it first.",
+      ),
+    );
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it("allows saving an active map when no other map is active", async () => {
+    mockList.mockResolvedValue({
+      data: [{ cfg: "2.0.0", active: false, messages: "[]", tenantId: "default" }],
+      meta: { total: 1, limit: 20, offset: 0 },
+    });
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId("row-0")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Create New"));
+    await waitFor(() => expect(screen.getByText("Create")).toBeInTheDocument());
+    const switchEl = screen.getByTestId("mui-switch");
+    const propKeys = Object.keys(switchEl).filter((k) => k.startsWith("__reactProps"));
+    const props = (switchEl as any)[propKeys[0]];
+    act(() => {
+      props.onChange({ target: { checked: true } });
+    });
+    fireEvent.click(screen.getByText("Create"));
+    await waitFor(() => expect(mockCreate).toHaveBeenCalled());
+    expect(mockCreate).toHaveBeenCalledWith("network_map", expect.objectContaining({ active: true }));
+  });
+
   it("shows error when create fails", async () => {
     mockCreate.mockRejectedValue(new Error("Create failed"));
     renderPage();
@@ -231,9 +291,7 @@ describe("NetworkMapPage", () => {
     await waitFor(() => expect(screen.getByText("Create")).toBeInTheDocument());
     fireEvent.change(screen.getByLabelText("Config Version"), { target: { value: "" } });
     fireEvent.click(screen.getByText("Create"));
-    await waitFor(() =>
-      expect(mockShowError).toHaveBeenCalledWith("Validation error", "Config Version is required"),
-    );
+    await waitFor(() => expect(mockShowError).toHaveBeenCalledWith("Validation error", "Config Version is required"));
   });
 
   it("renders loading state", async () => {
@@ -422,9 +480,7 @@ describe("NetworkMapPage", () => {
     // results in empty string, triggering "Config Version is required"
     fireEvent.change(screen.getByLabelText("Config Version"), { target: { value: "" } });
     fireEvent.click(screen.getByText("Create"));
-    await waitFor(() =>
-      expect(mockShowError).toHaveBeenCalledWith("Validation error", "Config Version is required"),
-    );
+    await waitFor(() => expect(mockShowError).toHaveBeenCalledWith("Validation error", "Config Version is required"));
   });
 
   it("shows error when messages is invalid JSON on save", async () => {
@@ -711,9 +767,7 @@ describe("NetworkMapPage", () => {
 
   it("edits record with non-string messages (typeof branch)", async () => {
     mockList.mockResolvedValue({
-      data: [
-        { cfg: "1.0.0", active: true, messages: [{ id: "msg1" }] as any, tenantId: "default" },
-      ],
+      data: [{ cfg: "1.0.0", active: true, messages: [{ id: "msg1" }] as any, tenantId: "default" }],
       meta: { total: 1, limit: 20, offset: 0 },
     });
     renderPage();
