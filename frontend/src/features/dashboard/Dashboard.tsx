@@ -1,38 +1,51 @@
-import * as React from 'react';
-import { styled } from '@mui/material/styles';
-import MuiAppBar from '@mui/material/AppBar';
-import CssBaseline from '@mui/material/CssBaseline';
-import Box from '@mui/material/Box';
-import { Outlet, useLocation } from 'react-router-dom';
+import * as React from "react";
+import { styled } from "@mui/material/styles";
+import MuiAppBar from "@mui/material/AppBar";
+import CssBaseline from "@mui/material/CssBaseline";
+import Box from "@mui/material/Box";
+import { Outlet, useLocation } from "react-router-dom";
 
-import TopBar from './components/TopBar';
-import SideNav from './components/SideNav';
-import Drawer from './components/Drawer';
-import DashboardBoxes from './components/DashboardBoxes';
-import { ROUTES } from '../../shared/config/routes.config';
+import TopBar from "./components/TopBar";
+import SideNav from "./components/SideNav";
+import Drawer from "./components/Drawer";
+import DashboardBoxes from "./components/DashboardBoxes";
+import { ROUTES } from "../../shared/config/routes.config";
 
 const drawerWidth = 240;
 const HEADER_HEIGHT = 40;
 
-const DrawerHeader = styled('div')(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'flex-end',
+const DrawerHeader = styled("div")(({ theme }) => ({
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "flex-end",
   padding: theme.spacing(0, 1),
   minHeight: HEADER_HEIGHT,
-  backgroundColor: '#FBF9FA',
-  borderBottom: '1px solid rgba(0,0,0,0.04)',
+  backgroundColor: "#FBF9FA",
+  borderBottom: "1px solid rgba(0,0,0,0.04)",
 }));
 
 const AppBar = styled(MuiAppBar)(() => ({
   zIndex: 50,
-  backgroundColor: '#FBF9FA',
-  color: '#000',
-  boxShadow: 'none',
-  '&.MuiPaper-elevation4': {
-    boxShadow: 'none',
+  backgroundColor: "#FBF9FA",
+  color: "#000",
+  boxShadow: "none",
+  "&.MuiPaper-elevation4": {
+    boxShadow: "none",
   },
 }));
+
+export function getMainSx(open: boolean, drawerWidth: number) {
+  return (theme: any) => ({
+    flexGrow: 1,
+    minWidth: 0,
+    p: 3,
+    transition: "margin-left 225ms cubic-bezier(0.4,0,0.2,1)",
+    ml: open ? `${drawerWidth}px` : `calc(${theme.spacing(7)} + 1px)`,
+    [theme.breakpoints.up("sm")]: {
+      ml: open ? `${drawerWidth}px` : `calc(${theme.spacing(8)} + 1px)`,
+    },
+  });
+}
 
 export default function Dashboard() {
   const [open, setOpen] = React.useState(false);
@@ -43,7 +56,7 @@ export default function Dashboard() {
   };
 
   return (
-    <Box sx={{ display: 'flex' }}>
+    <Box sx={{ display: "flex" }}>
       <CssBaseline />
       <AppBar position="fixed">
         <TopBar open={open} onToggle={handleToggleMenu} />
@@ -56,19 +69,7 @@ export default function Dashboard() {
           }}
         />
       </Drawer>
-      <Box
-        component="main"
-        sx={(theme: any) => ({
-          flexGrow: 1,
-          minWidth: 0,
-          p: 3,
-          transition: 'margin-left 225ms cubic-bezier(0.4,0,0.2,1)',
-          ml: open ? `${drawerWidth}px` : `calc(${theme.spacing(7)} + 1px)`,
-          [theme.breakpoints.up('sm')]: {
-            ml: open ? `${drawerWidth}px` : `calc(${theme.spacing(8)} + 1px)`,
-          },
-        })}
-      >
+      <Box component="main" sx={getMainSx(open, drawerWidth)}>
         <DrawerHeader />
         <div>
           {location.pathname === ROUTES.DASHBOARD ? <DashboardBoxes /> : null}
