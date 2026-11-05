@@ -151,6 +151,22 @@ describe('ConfigController', () => {
     });
   });
 
+  describe('getNetworkMapById', () => {
+    it('should call configProxyService.getById with network_map, empty id, cfg, and token', async () => {
+      mockConfigProxyService.getById.mockResolvedValue({ cfg: '1.0.0' });
+
+      await controller.getNetworkMapById('1.0.0', mockUser as any);
+
+      expect(configProxyService.getById).toHaveBeenCalledWith(
+        'network_map',
+        '',
+        '1.0.0',
+        'test-token',
+        'tenant-1',
+      );
+    });
+  });
+
   describe('create', () => {
     it('should call configProxyService.create with resolved table, body, and token', async () => {
       mockConfigProxyService.create.mockResolvedValue({ created: true });
