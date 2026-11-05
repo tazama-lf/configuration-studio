@@ -4,8 +4,8 @@ End-to-end tests for the Tazama Config Studio frontend using [Playwright](https:
 
 ## Prerequisites
 
-1. **Backend API** running on `http://localhost:3011`
-2. **Frontend dev server** running on `http://localhost:5173`
+1. **Backend API** running on `http://localhost:3015`
+2. **Frontend dev server** running on `http://localhost:5176`
 
 ```bash
 # From the frontend directory
@@ -60,7 +60,7 @@ npm run e2e:report
 ## Configuration
 
 - **Playwright config:** `playwright.config.ts` (in the frontend root)
-- **Base URL:** `http://localhost:5173`
+- **Base URL:** `http://localhost:5176`
 - **Browser:** Chromium (Desktop Chrome)
 - **Timeouts:** 60s per test, 15s for actions, 30s for navigation
 - **Traces:** Captured on first retry

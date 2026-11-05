@@ -26,7 +26,7 @@ export const ENV = {
   API_BASE_URL:
     window.RUNTIME_CONFIG?.API_BASE_URL ??
     import.meta.env.VITE_API_BASE_URL ??
-    'http://localhost:3011',
+    'http://localhost:3015',
 
   APP_TITLE:
     window.RUNTIME_CONFIG?.APP_TITLE ??

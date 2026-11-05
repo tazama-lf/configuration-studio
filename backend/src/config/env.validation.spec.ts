@@ -9,7 +9,7 @@ describe('env.validation', () => {
     AUTH_PUBLIC_KEY_PATH: '/path/to/key',
     CERT_PATH_PUBLIC: '/path/to/cert',
     ADMIN_SERVICE_URL: 'http://admin:5100',
-    PORT: '3011',
+    PORT: '3015',
   };
 
   describe('validate', () => {
