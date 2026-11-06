@@ -40,15 +40,28 @@ async function bootstrap(): Promise<void> {
     credentials: true,
   });
 
-  const config = new DocumentBuilder()
-    .setTitle('Tazama Config Studio API')
-    .setDescription('Tazama Config Studio APIs')
-    .setVersion('1.0')
-    .addBearerAuth({ type: 'http', scheme: 'bearer' }, 'jwt')
-    .build();
+  /**
+   * Swagger exposes the full API surface (paths, DTOs, auth scheme) to
+   * anyone without authentication. Serving it in production hands an
+   * attacker a complete map of the API. Only mount it outside production;
+   * NODE_ENV values 'production' and 'prod' both count as production.
+   */
+  const nodeEnv = configService.get<string>('NODE_ENV') ?? 'development';
+  const isProduction = nodeEnv === 'production' || nodeEnv === 'prod';
 
-  const doc = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, doc);
+  if (!isProduction) {
+    const config = new DocumentBuilder()
+      .setTitle('Tazama Config Studio API')
+      .setDescription('Tazama Config Studio APIs')
+      .setVersion('1.0')
+      .addBearerAuth({ type: 'http', scheme: 'bearer' }, 'jwt')
+      .build();
+
+    const doc = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api/docs', app, doc);
+  } else {
+    logger.log('Swagger UI disabled in production (set NODE_ENV != production to enable)');
+  }
 
   const port = configService.get<number>('PORT') ?? 3015;
   await app.listen(port);
