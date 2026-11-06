@@ -37,7 +37,7 @@ Not present in any of 34 rows:
 |----------------------|------|--------|--------|
 | `id`,`cfg`,`desc`    | REQ  | emitted (id/cfg gated on non-empty) | OK |
 | `tenantId`           | REQ  | emitted only if truthy — risk if unset | LOW-RISK |
-| `creDtTm`, `updDtTm` | REQ  | server-injected on save ([config-proxy.service.ts:159-172](../backend/src/config/config-proxy.service.ts#L159-L172)) | OK |
+| `creDtTm`, `updDtTm` | REQ  | server-injected on save ([config-proxy.service.ts (injectTimestamps)](../backend/src/config/config-proxy.service.ts)) | OK |
 | `config.parameters`  | REQ-ish (33/34) | always emitted | OK |
 | `config.exitConditions` | REQ | always emitted | OK |
 | `config.bands`       | conditional | emitted when `configType='bands'` | OK |
@@ -112,7 +112,7 @@ cfg, active, messages, tenantId
 | Field                                     | DB   | Studio | Diff |
 |-------------------------------------------|------|--------|------|
 | `cfg`, `active`, `tenantId`               | REQ  | emitted | OK |
-| `name`                                    | REQ  | **not emitted** | **MISSING in studio** |
+| `name`                                    | REQ  | **not emitted** | **MISSING in studio** (fixed: backend now preserves the stored `name` on update) |
 | `creDtTm`                                 | REQ  | server-injected | OK |
 | `updDtTm`                                 | never | server-injected | **EXTRA in studio** |
 | `messages[].{id,cfg,txTp}`                | REQ  | emitted | OK |
@@ -121,7 +121,7 @@ cfg, active, messages, tenantId
 | `rules[].{id,cfg}`                        | REQ  | emitted | OK |
 
 **Network map verdict: one blocker + additive diffs.**
-1. **Missing `name`** — required by DB, not in editor at all
+1. ~~**Missing `name`**~~ — **resolved**: the backend now merges the stored `name` back into update payloads (see `preserveOmittedFields()` in `config-proxy.service.ts`), so UI edits no longer wipe it
 2. `updDtTm` written (DB never has it here)
 3. Per-typology `tenantId` written (DB never has it there)
 
@@ -135,8 +135,8 @@ cfg, active, messages, tenantId
 
 ## Required fixes to match DB shape
 
-1. **Add `name` to the network map editor** and include it in the emitted payload ([NetworkMapConfigEditor.tsx:115-122](../frontend/src/features/config/components/NetworkMapConfigEditor.tsx#L115-L122)).
-2. **Stop injecting `updDtTm` for typology and network_map** — restrict [config-proxy.service.ts:159-172](../backend/src/config/config-proxy.service.ts#L159-L172) to `rule` only, or drop `updDtTm` from those payloads before persisting.
+1. ~~**Add `name` to the network map editor** and include it in the emitted payload~~ — **resolved differently**: the backend preserves the stored `name` on update (`preserveOmittedFields()` in [config-proxy.service.ts](../backend/src/config/config-proxy.service.ts)), so the editor needs no name field.
+2. **Stop injecting `updDtTm` for typology and network_map** — restrict [config-proxy.service.ts (injectTimestamps)](../backend/src/config/config-proxy.service.ts) to `rule` only, or drop `updDtTm` from those payloads before persisting.
 3. **Remove per-typology `tenantId`** from network-map emission ([NetworkMapConfigEditor.tsx:151](../frontend/src/features/config/components/NetworkMapConfigEditor.tsx#L151)).
 4. **Omit `flowProcessor` from typology `workflow`** when empty ([TypologyConfigEditor.tsx:136-140](../frontend/src/features/config/components/TypologyConfigEditor.tsx#L136-L140)) — or drop the field entirely if there's no plan to use it.
 5. **Omit `workflow.interdictionThreshold`** when 0/unset (same lines) — DB only has it in 26% of typologies.
