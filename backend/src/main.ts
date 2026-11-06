@@ -15,6 +15,18 @@ async function bootstrap(): Promise<void> {
   const configService = app.get(ConfigService);
   const logger = new Logger('Bootstrap');
 
+  /**
+   * Allowed CORS origins. `origin: true` reflected any Origin header back
+   * together with credentials, letting any site make authenticated requests
+   * to this API. Restrict to the origins configured via CORS_ORIGINS
+   * (comma-separated); default to the local dev frontend when unset, and
+   * allow none when explicitly set empty.
+   */
+  const corsOrigins = (configService.get<string>('CORS_ORIGINS') ?? 'http://localhost:5176')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0);
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -24,7 +36,7 @@ async function bootstrap(): Promise<void> {
   );
 
   app.enableCors({
-    origin: true,
+    origin: corsOrigins,
     credentials: true,
   });
 

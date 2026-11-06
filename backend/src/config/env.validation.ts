@@ -36,6 +36,10 @@ class EnvironmentVariables {
   @IsOptional()
   @IsString()
   PORT?: string;
+
+  @IsOptional()
+  @IsString()
+  CORS_ORIGINS?: string;
 }
 
 export const validate = (
