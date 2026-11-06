@@ -48,9 +48,11 @@ export const validate = (
   const validatedConfig = plainToClass(EnvironmentVariables, config, {
     enableImplicitConversion: true,
   });
-  const errors = validateSync(validatedConfig, {
-    skipMissingProperties: true,
-  });
+  // No skipMissingProperties: a missing required variable (TAZAMA_AUTH_URL,
+  // ADMIN_SERVICE_URL, CERT_PATH_PUBLIC, ...) must abort startup with a clear
+  // error instead of letting the app boot half-configured and fail at request
+  // time - or worse, silently fall back to a localhost default in production.
+  const errors = validateSync(validatedConfig);
   if (errors.length > 0) {
     throw new Error(errors.toString());
   }
