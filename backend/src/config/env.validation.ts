@@ -40,6 +40,10 @@ class EnvironmentVariables {
   @IsOptional()
   @IsString()
   CORS_ORIGINS?: string;
+
+  @IsOptional()
+  @IsString()
+  HTTP_TIMEOUT_MS?: string;
 }
 
 export const validate = (

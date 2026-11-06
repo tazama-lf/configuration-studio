@@ -89,11 +89,9 @@ export class AdminServiceClient {
     };
     if (err.response) {
       const { status, data } = err.response;
-      this.logger.error(
-        `${operation} failed with status ${status}: ${JSON.stringify(data)}`,
-      );
-
-      // Pass through the status code from admin-service
+      // Extract the message without logging the full upstream body: response
+      // bodies can contain configuration payloads and other internal data
+      // that must not end up in logs.
       const message =
         data &&
           typeof data === 'object' &&
@@ -101,7 +99,9 @@ export class AdminServiceClient {
           typeof data.message === 'string'
           ? data.message
           : 'Admin service returned an error response';
+      this.logger.error(`${operation} failed with status ${status}: ${message}`);
 
+      // Pass through the status code from admin-service
       throw new HttpException({ message, statusCode: status }, status);
     } else if (err.request) {
       this.logger.error(
