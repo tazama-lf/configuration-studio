@@ -148,11 +148,14 @@ DELETE /v1/admin/configuration/{table}/{id}/{cfg}
 | ---------------------- | ------------------------ | ----------------------- |
 | `PORT`                 | Backend port             | `3015`                  |
 | `NODE_ENV`             | Node environment         | `development`           |
-| `TAZAMA_AUTH_URL`      | Auth-service URL         | _(required)_            |
-| `ADMIN_SERVICE_URL`    | Admin-service URL        | `http://localhost:5100` |
+| `CORS_ORIGINS`         | Comma-separated allowed CORS origins | `http://localhost:5176` |
+| `TAZAMA_AUTH_URL`      | Auth-service URL (base; `/v1/auth/login` is appended) | _(required)_ |
+| `ADMIN_SERVICE_URL`    | Admin-service URL        | _(required)_            |
 | `AUTH_PUBLIC_KEY_PATH` | Keycloak public key path | _(required)_            |
 | `CERT_PATH_PUBLIC`     | Public certificate path  | _(required)_            |
 | `FUNCTION_NAME`        | Function name            | _(required)_            |
+
+> **Production key management:** the `public-key.pem` committed in `backend/` is a development convenience only. In production, mount the key for your environment (secret or volume) and point `CERT_PATH_PUBLIC`/`AUTH_PUBLIC_KEY_PATH` at the mounted path — never trust the repository copy, since a public key in git cannot be rotated per environment.
 
 ### Frontend
 
