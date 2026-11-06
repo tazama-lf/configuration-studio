@@ -25,11 +25,12 @@
     "@nestjs/platform-express": "^11.1.6",
     "@nestjs/swagger": "^11.2.0",
     "@tazama-lf/auth-lib": "4.0.0",
-    "@tazama-lf/frms-coe-lib": "8.2.0",
+    "@tazama-lf/frms-coe-lib": "^8.3.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
     "dotenv": "^16.4.7",
     "jsonwebtoken": "^9.0.2",
+    "multer": "2.5.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
   },
@@ -73,7 +74,22 @@
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
-      "^.+\\.(t|j)s$": ["@swc/jest", { "jsc": { "target": "es2023", "parser": { "syntax": "typescript", "decorators": true }, "transform": { "legacyDecorator": true, "decoratorMetadata": true } } }]
+      "^.+\\.(t|j)s$": [
+        "@swc/jest",
+        {
+          "jsc": {
+            "target": "es2023",
+            "parser": {
+              "syntax": "typescript",
+              "decorators": true
+            },
+            "transform": {
+              "legacyDecorator": true,
+              "decoratorMetadata": true
+            }
+          }
+        }
+      ]
     },
     "collectCoverageFrom": [
       "**/*.(t|j)s",
@@ -100,5 +116,11 @@
       }
     },
     "testEnvironment": "node"
+  },
+  "overrides": {
+    "multer": "2.5.0",
+    "cloudevents": {
+      "uuid": "^11.1.1"
+    }
   }
 }
