@@ -1,6 +1,7 @@
 import { plainToClass } from 'class-transformer';
 import {
   IsEnum,
+  IsNumber,
   IsString,
   IsOptional,
   validateSync,
@@ -41,9 +42,18 @@ class EnvironmentVariables {
   @IsString()
   CORS_ORIGINS?: string;
 
+  /** Numeric knobs: enableImplicitConversion parses the env string to a number. */
   @IsOptional()
-  @IsString()
-  HTTP_TIMEOUT_MS?: string;
+  @IsNumber()
+  HTTP_TIMEOUT_MS?: number;
+
+  @IsOptional()
+  @IsNumber()
+  LOGIN_RATE_TTL_MS?: number;
+
+  @IsOptional()
+  @IsNumber()
+  LOGIN_RATE_LIMIT?: number;
 }
 
 export const validate = (

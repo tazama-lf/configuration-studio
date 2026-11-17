@@ -61,6 +61,26 @@ describe('env.validation', () => {
       expect(result.PORT).toBe('4000');
     });
 
+    it('should convert numeric env strings to numbers for numeric knobs', () => {
+      const result = validate({
+        ...validEnv,
+        HTTP_TIMEOUT_MS: '15000',
+        LOGIN_RATE_TTL_MS: '30000',
+        LOGIN_RATE_LIMIT: '10',
+      });
+      expect(result.HTTP_TIMEOUT_MS).toBe(15000);
+      expect(result.LOGIN_RATE_TTL_MS).toBe(30000);
+      expect(result.LOGIN_RATE_LIMIT).toBe(10);
+    });
+
+    it('should reject a non-numeric HTTP_TIMEOUT_MS', () => {
+      expect(() => validate({ ...validEnv, HTTP_TIMEOUT_MS: 'fast' })).toThrow();
+    });
+
+    it('should reject a non-numeric LOGIN_RATE_LIMIT', () => {
+      expect(() => validate({ ...validEnv, LOGIN_RATE_LIMIT: 'many' })).toThrow();
+    });
+
     it('should accept config with only required fields', () => {
       const result = validate({
         NODE_ENV: 'development',

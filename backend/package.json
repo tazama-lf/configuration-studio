@@ -24,6 +24,7 @@
     "@nestjs/core": "^11.0.1",
     "@nestjs/platform-express": "^11.1.6",
     "@nestjs/swagger": "^11.2.0",
+    "@nestjs/throttler": "^6.8.0",
     "@tazama-lf/auth-lib": "4.0.0",
     "@tazama-lf/frms-coe-lib": "^8.3.0",
     "class-transformer": "^0.5.1",

@@ -93,6 +93,42 @@ describe("AuthContext", () => {
     expect(localStorage.getItem("user")).toBeNull();
   });
 
+  it("logs out on init when the token is expired", async () => {
+    // Issue #40: an expired session used to look logged-in until the first
+    // API call failed. exp is seconds since epoch.
+    const expired = Math.floor(Date.now() / 1000) - 60;
+    const token = makeToken({ sub: "user1", preferred_username: "storeduser", exp: expired });
+    localStorage.setItem("authToken", token);
+    localStorage.setItem("user", JSON.stringify({ id: "user1", username: "storeduser" }));
+
+    render(
+      <AuthProvider>
+        <AuthConsumer />
+      </AuthProvider>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId("auth").textContent).toBe("false");
+    });
+    expect(localStorage.getItem("authToken")).toBeNull();
+    expect(localStorage.getItem("user")).toBeNull();
+  });
+
+  it("stays authenticated on init when the token is not yet expired", async () => {
+    const future = Math.floor(Date.now() / 1000) + 3600;
+    const token = makeToken({ sub: "user1", preferred_username: "storeduser", exp: future });
+    localStorage.setItem("authToken", token);
+    localStorage.setItem("user", JSON.stringify({ id: "user1", username: "storeduser" }));
+
+    render(
+      <AuthProvider>
+        <AuthConsumer />
+      </AuthProvider>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId("auth").textContent).toBe("true");
+    });
+  });
+
   it("handles corrupted user JSON in localStorage", async () => {
     const token = makeToken({ sub: "user1" });
     localStorage.setItem("authToken", token);

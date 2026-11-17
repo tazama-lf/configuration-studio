@@ -8,7 +8,6 @@ import RulePage from '../features/config/pages/RulePage';
 import TypologyPage from '../features/config/pages/TypologyPage';
 import { ROUTES } from '../shared/config/routes.config';
 import { setupFetch401Interceptor } from '../utils/common/interceptor';
-
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated } = useAuth();
   if (!isAuthenticated) {
@@ -22,7 +21,9 @@ export const AppRoutes: React.FC = () => {
   const { loading } = useAuth();
 
   useEffect(() => {
-    setupFetch401Interceptor(async () => {
+    // The interceptor now returns a cleanup that restores the original
+    // fetch — without it every effect run stacked another wrapper.
+    return setupFetch401Interceptor(() => {
       navigate(ROUTES.LOGIN);
     });
   }, [navigate]);

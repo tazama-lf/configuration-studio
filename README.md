@@ -121,8 +121,10 @@ DELETE /v1/admin/configuration/{table}/{id}/{cfg}
 
 ## Authentication
 
-- **Backend**: Uses `@tazama-lf/auth-lib` for JWT validation and claim checking. The `TazamaAuthGuard` validates the bearer token, checks required claims via `@RequireClaims()` / `@RequireAnyClaims()` decorators, and injects an `AuthenticatedUser` via the `@User()` decorator.
-- **Frontend**: `AuthContext` manages login/logout state. JWT token is stored in `localStorage`. A fetch interceptor (`interceptor.ts`) redirects to `/login` on `401` responses. Token decoding extracts user info (username, email, claims, tenantId, realm roles).
+- **Backend**: Uses `@tazama-lf/auth-lib` for JWT validation and claim checking. The `TazamaAuthGuard` validates the bearer token, checks required claims via `@RequireClaims()` / `@RequireAnyClaims()` decorators, and injects an `AuthenticatedUser` via the `@User()` decorator. `/auth/login` is rate-limited (5 requests/minute per client).
+- **Frontend**: `AuthContext` manages login/logout state. JWT token is stored in `localStorage`. The token's `exp` claim is checked on startup and an expired session is logged out immediately. A fetch interceptor (`interceptor.ts`) clears the session and redirects to `/login` on `401` responses. Token decoding extracts user info (username, email, claims, tenantId, realm roles).
+
+> **Token storage note:** the JWT lives in `localStorage`, which an XSS vulnerability could read. This is a conscious trade-off for the current deployment; a hardened alternative is an httpOnly cookie set by the backend. Track any move to that model as its own change (it requires a backend cookie endpoint and CSRF protection).
 
 ## Frontend Features
 
