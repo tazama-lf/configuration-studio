@@ -56,6 +56,17 @@ async function bootstrap(): Promise<void> {
   // Never advertise the server framework.
   app.getHttpAdapter().getInstance().disable('x-powered-by');
 
+  /**
+   * Behind a load balancer, Express reports the proxy's address as the
+   * client IP unless `trust proxy` is configured for the deployment
+   * topology (TRUST_PROXY: 'true', hop count, IP/subnet, or a list).
+   */
+  const trustProxy = configService.get<string>('TRUST_PROXY');
+  if (trustProxy !== undefined) {
+    const hops = Number(trustProxy);
+    app.getHttpAdapter().getInstance().set('trust proxy', Number.isNaN(hops) ? trustProxy : hops);
+  }
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

@@ -7,6 +7,8 @@ import {
 import { ConfigController } from './config.controller';
 import { ConfigProxyService } from './config-proxy.service';
 import { TazamaAuthGuard } from '../auth/tazama-auth.guard';
+import { ConfigClaimsGuard } from './config-claims.guard';
+import { ConfigClaimsService } from './config-claims.service';
 
 describe('ConfigController', () => {
   let controller: ConfigController;
@@ -24,6 +26,10 @@ describe('ConfigController', () => {
   };
 
   const mockAuthGuard = {
+    canActivate: jest.fn().mockReturnValue(true),
+  };
+
+  const mockClaimsGuard = {
     canActivate: jest.fn().mockReturnValue(true),
   };
 
@@ -60,6 +66,8 @@ describe('ConfigController', () => {
       providers: [
         { provide: ConfigProxyService, useValue: mockConfigProxyService },
         { provide: TazamaAuthGuard, useValue: mockAuthGuard },
+        { provide: ConfigClaimsGuard, useValue: mockClaimsGuard },
+        { provide: ConfigClaimsService, useValue: { readClaims: [], writeClaims: [], activateClaims: [] } },
       ],
     }).compile();
 
