@@ -347,6 +347,57 @@ describe('ConfigProxyService', () => {
       expect(sentBody().creDtTm).toBe('stored-creation-time');
     });
 
+    it('should preserve name from the stored record when a network map update omits it', async () => {
+      mockAdminServiceClient.executeHttpRequest.mockImplementation((method: string) =>
+        method === 'GET'
+          ? Promise.resolve({ cfg: '2.0.0', name: 'stored-name', creDtTm: 'stored-creation-time' })
+          : Promise.resolve({}),
+      );
+
+      await service.update('network_map', 'ignored-id', '2.0.0', { messages: [] }, 'token', 'tenant-1');
+
+      expect(sentBody().name).toBe('stored-name');
+      expect(sentBody().creDtTm).toBe('stored-creation-time');
+    });
+
+    it('should keep the caller-supplied name on a network map update', async () => {
+      mockAdminServiceClient.executeHttpRequest.mockImplementation((method: string) =>
+        method === 'GET'
+          ? Promise.resolve({ cfg: '2.0.0', name: 'stored-name', creDtTm: '2020-01-01T00:00:00.000Z' })
+          : Promise.resolve({}),
+      );
+
+      await service.update('network_map', 'ignored-id', '2.0.0', { name: 'new-name' }, 'token', 'tenant-1');
+
+      expect(sentBody().name).toBe('new-name');
+    });
+
+    it('should not add name when the stored network map has none', async () => {
+      mockAdminServiceClient.executeHttpRequest.mockImplementation((method: string) =>
+        method === 'GET' ? Promise.resolve({ cfg: '2.0.0' }) : Promise.resolve({}),
+      );
+
+      await service.update('network_map', 'ignored-id', '2.0.0', { messages: [] }, 'token', 'tenant-1');
+
+      expect(sentBody()).not.toHaveProperty('name');
+    });
+
+    it('should not read the stored record when a network map update supplies both name and creDtTm', async () => {
+      mockAdminServiceClient.executeHttpRequest.mockResolvedValue({});
+
+      await service.update(
+        'network_map',
+        'ignored-id',
+        '2.0.0',
+        { name: 'nm', creDtTm: '2020-01-01T00:00:00.000Z' },
+        'token',
+        'tenant-1',
+      );
+
+      const methods = mockAdminServiceClient.executeHttpRequest.mock.calls.map((c) => c[0]);
+      expect(methods).toEqual(['PUT']);
+    });
+
     it('should not add creDtTm when the stored record has none', async () => {
       mockAdminServiceClient.executeHttpRequest.mockImplementation((method: string) =>
         method === 'GET' ? Promise.resolve({ id: 'rule-1' }) : Promise.resolve({}),

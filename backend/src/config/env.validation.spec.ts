@@ -9,7 +9,7 @@ describe('env.validation', () => {
     AUTH_PUBLIC_KEY_PATH: '/path/to/key',
     CERT_PATH_PUBLIC: '/path/to/cert',
     ADMIN_SERVICE_URL: 'http://admin:5100',
-    PORT: '3011',
+    PORT: '3015',
   };
 
   describe('validate', () => {
@@ -73,9 +73,23 @@ describe('env.validation', () => {
       expect(result).toBeDefined();
     });
 
-    it('should handle empty object with skipMissingProperties', () => {
-      const result = validate({});
-      expect(result).toBeDefined();
+    it('should throw when required env vars are missing (no skipMissingProperties)', () => {
+      const { TAZAMA_AUTH_URL, ...rest } = validEnv;
+      expect(() => validate(rest)).toThrow(/TAZAMA_AUTH_URL/);
+    });
+
+    it('should throw when ADMIN_SERVICE_URL is missing', () => {
+      const { ADMIN_SERVICE_URL, ...rest } = validEnv;
+      expect(() => validate(rest)).toThrow(/ADMIN_SERVICE_URL/);
+    });
+
+    it('should throw when CERT_PATH_PUBLIC is missing', () => {
+      const { CERT_PATH_PUBLIC, ...rest } = validEnv;
+      expect(() => validate(rest)).toThrow(/CERT_PATH_PUBLIC/);
+    });
+
+    it('should throw on an empty config object', () => {
+      expect(() => validate({})).toThrow();
     });
 
     it('should convert numeric strings to strings with enableImplicitConversion', () => {
