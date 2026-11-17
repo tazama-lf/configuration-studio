@@ -240,8 +240,25 @@ describe("NetworkMapPage", () => {
     );
   });
 
-  it("carries the stored name into the edit form and update payload", async () => {
-    mockList.mockImplementation((_table, params) => {
+  it("blocks saving when the token has no tenant instead of falling back to a default", async () => {
+    // Issue #43: a missing tenant must not silently write to a "default"
+    // tenant — the save is blocked with a clear message.
+    mockUser = { id: "1", username: "test" };
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId("row-0")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Create New"));
+    await waitFor(() => expect(screen.getByText("Create")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Create"));
+    await waitFor(() =>
+      expect(mockShowError).toHaveBeenCalledWith(
+        "Validation error",
+        "Your session has no tenant context. Please log in again.",
+      ),
+    );
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it("carries the stored name into the edit form and update payload", async () => {    mockList.mockImplementation((_table, params) => {
       const filtered = params.filters?.active === "true";
       const data = filtered
         ? testData.filter((r) => r.active)
@@ -937,13 +954,16 @@ describe("NetworkMapPage", () => {
     expect(screen.getByText("Create")).toBeInTheDocument();
   });
 
-  it("falls back to the default tenant when the user has no tenantId", async () => {
+  it("blocks the save when the user has no tenantId (no default-tenant fallback)", async () => {
+    // Issue #43: this used to fall back to the "default" tenant and save;
+    // the save must now be blocked with a clear message instead.
     mockUser = { id: "1", username: "test" };
     renderPage();
     fireEvent.click(screen.getByText("Create New"));
     await waitFor(() => expect(screen.getByText("Create")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Create"));
-    await waitFor(() => expect(mockCreate).toHaveBeenCalled());
+    await waitFor(() => expect(mockShowError).toHaveBeenCalled());
+    expect(mockCreate).not.toHaveBeenCalled();
   });
 
   it("opens edit for a record with array messages and no tenantId", async () => {

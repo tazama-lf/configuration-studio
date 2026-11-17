@@ -150,7 +150,9 @@ export class AuthApiService {
         'user',
       email: innerPayload.email ?? payload.email,
       claims: payload.claims ?? innerPayload.realm_access?.roles ?? [],
-      tenantId: (payload.tenantId ?? innerPayload.tenantId)?.toLowerCase(),
+      // Used exactly as the token carries it: the backend matches tenants
+      // case-sensitively, so lowercasing broke tenants with capital letters.
+      tenantId: payload.tenantId ?? innerPayload.tenantId,
     };
   }
 

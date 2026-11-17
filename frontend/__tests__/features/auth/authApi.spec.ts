@@ -23,7 +23,9 @@ describe('AuthApiService', () => {
       expect(user!.username).toBe('testuser');
       expect(user!.email).toBe('test@example.com');
       expect(user!.claims).toEqual(['admin']);
-      expect(user!.tenantId).toBe('tenanta');
+      // Issue #43: the tenant ID is used exactly as the token carries it —
+      // the backend matches case-sensitively.
+      expect(user!.tenantId).toBe('TenantA');
     });
 
     it('decodes a token with inner tokenString', () => {
@@ -94,7 +96,7 @@ describe('AuthApiService', () => {
       const token = makeToken({ tokenString: innerToken });
       const user = AuthApiService.decodeToken(token);
       expect(user).not.toBeNull();
-      expect(user!.tenantId).toBe('innertenant');
+      expect(user!.tenantId).toBe('InnerTenant');
     });
 
     it('returns null when JSON.parse fails on decoded payload', () => {
