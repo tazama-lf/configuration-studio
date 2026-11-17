@@ -15,6 +15,7 @@ import {
 import { ConfigProxyService, type ConfigTable } from './config-proxy.service';
 import { validateConfigPayload } from './dto/config-payload.validator';
 import { TazamaAuthGuard } from '../auth/tazama-auth.guard';
+import { ConfigClaimsGuard } from './config-claims.guard';
 import { User } from '../auth/user.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
 
@@ -26,7 +27,7 @@ const TABLES: Partial<Record<string, ConfigTable>> = {
 };
 
 @Controller('config')
-@UseGuards(TazamaAuthGuard)
+@UseGuards(TazamaAuthGuard, ConfigClaimsGuard)
 export class ConfigController {
   constructor(private readonly configProxyService: ConfigProxyService) { }
 
@@ -45,6 +46,29 @@ export class ConfigController {
       table,
       user.token.tokenString,
       query,
+      user.tenantId,
+    );
+  }
+
+  /**
+   * Get a single network map by cfg (single-key table)
+   * GET /config/network-map/:cfg
+   *
+   * Must be declared before the :table/:id/:cfg route below, otherwise
+   * the two-segment path matches no route and the request 404s.
+   */
+  @Get('network-map/:cfg')
+  async getNetworkMapById(
+    @Param('cfg') cfg: string,
+    @User() user: AuthenticatedUser,
+  ): Promise<unknown> {
+    const table = this.resolveTable('network-map');
+    // For single-key tables the id path segment is not used by the proxy service.
+    return await this.configProxyService.getById(
+      table,
+      '',
+      cfg,
+      user.token.tokenString,
       user.tenantId,
     );
   }

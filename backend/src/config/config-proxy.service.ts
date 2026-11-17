@@ -86,7 +86,7 @@ export class ConfigProxyService {
       (body as Record<string, unknown>).tenantId = tenantId;
     }
     const bodyWithTimestamps = this.injectTimestamps(body, false);
-    await this.preserveCreationTimestamp(table, id, cfg, bodyWithTimestamps, token, tenantId);
+    await this.preserveOmittedFields(table, id, cfg, bodyWithTimestamps, token, tenantId);
     return await this.adminServiceClient.executeHttpRequest('PUT', path, token, tenantId, bodyWithTimestamps);
   }
 
@@ -160,7 +160,7 @@ export class ConfigProxyService {
    * Inject creDtTm and updDtTm timestamps into the request body.
    * On create: both creDtTm and updDtTm are set to the current time.
    * On update: only updDtTm is refreshed; creDtTm is preserved by
-   * preserveCreationTimestamp().
+   * preserveOmittedFields().
    */
   private injectTimestamps(body: unknown, isCreate: boolean): unknown {
     if (body === null || typeof body !== 'object') {
@@ -178,15 +178,22 @@ export class ConfigProxyService {
   }
 
   /**
-   * Restore creDtTm on update.
+   * Restore or enforce fields a full-replace PUT would otherwise wipe or let
+   * the caller forge.
    *
    * A PUT replaces the whole stored configuration, so any key the caller omits
    * is deleted. The frontend builds its update payload from the form and does
    * not carry creDtTm forward, which used to silently wipe the creation
-   * timestamp on every edit. When the caller did not supply one, read the
-   * stored record and merge its creDtTm back in.
+   * timestamp on every edit. Network map edits have the same problem for
+   * `name`: the UI form has no name field, but every stored network map has
+   * one, so every edit used to clear it.
+   *
+   * creDtTm is always taken from the stored record on update — including
+   * when the caller supplies one — so a client can never rewrite the audit
+   * trail. Callers that omit it get the stored value merged back in; callers
+   * that send one get it silently replaced with the stored value.
    */
-  private async preserveCreationTimestamp(
+  private async preserveOmittedFields(
     table: ConfigTable,
     id: string,
     cfg: string,
@@ -194,13 +201,27 @@ export class ConfigProxyService {
     token: string,
     tenantId?: string,
   ): Promise<void> {
-    if (!this.isPlainRecord(body) || body.creDtTm !== undefined) {
+    if (!this.isPlainRecord(body)) {
       return;
     }
+    // creDtTm is always enforced from the stored record on update, and a
+    // network map name is preserved when omitted — both need the stored
+    // record, so the fetch is unconditional for object bodies.
+    const preserveName = table === 'network_map' && body.name === undefined;
 
     const existing = await this.fetchExistingRecord(table, id, cfg, token, tenantId);
-    if (existing?.creDtTm !== undefined) {
+    if (!existing) {
+      return;
+    }
+    if (existing.creDtTm !== undefined) {
       body.creDtTm = existing.creDtTm;
+    } else if (body.creDtTm !== undefined) {
+      // The store has no creation timestamp to enforce — a caller-supplied
+      // value would be a forgery, so drop it.
+      delete body.creDtTm;
+    }
+    if (preserveName && existing.name !== undefined) {
+      body.name = existing.name;
     }
   }
 
@@ -221,7 +242,7 @@ export class ConfigProxyService {
       return this.isPlainRecord(existing) ? existing : undefined;
     } catch (error) {
       this.logger.warn(
-        `Could not read existing ${table} ${id}/${cfg} to preserve creDtTm: ${(error as Error).message}`,
+        `Could not read existing ${table} ${id}/${cfg} to preserve omitted fields: ${(error as Error).message}`,
       );
       return undefined;
     }

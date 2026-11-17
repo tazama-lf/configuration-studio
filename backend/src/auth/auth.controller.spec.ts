@@ -3,7 +3,10 @@ import {
   UnauthorizedException,
   ServiceUnavailableException,
   InternalServerErrorException,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 
@@ -18,6 +21,7 @@ describe('AuthController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
+      imports: [ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 5 }])],
       providers: [{ provide: AuthService, useValue: mockAuthService }],
     }).compile();
 
@@ -149,6 +153,26 @@ describe('AuthController', () => {
       }
     });
 
+    it('should pass the 429 locked-account response through, not turn it into a 500', async () => {
+      // Issue #40: a locked account (429) used to fall into the catch-all
+      // branch and surface as a 500 Internal Server Error.
+      const error = new HttpException(
+        { message: 'Account is locked. Too many failed attempts.', statusCode: 429 },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+      mockAuthService.login.mockRejectedValue(error);
+
+      try {
+        await controller.login(validBody);
+        fail('Should have thrown');
+      } catch (e) {
+        expect(e).toBeInstanceOf(HttpException);
+        expect((e as HttpException).getStatus()).toBe(HttpStatus.TOO_MANY_REQUESTS);
+        const response = (e as HttpException).getResponse() as { message: string };
+        expect(response.message).toBe('Account is locked. Too many failed attempts.');
+      }
+    });
+
     it('should throw InternalServerErrorException for Error instance', async () => {
       mockAuthService.login.mockRejectedValue(new Error('Some error'));
 
@@ -187,15 +211,15 @@ describe('AuthController', () => {
       expect(warnSpy).toHaveBeenCalled();
     });
 
-    it('should log error when ServiceUnavailableException is thrown', async () => {
+    it('should log warn when ServiceUnavailableException is thrown', async () => {
       const error = new ServiceUnavailableException('Service unavailable');
       mockAuthService.login.mockRejectedValue(error);
 
-      const errorSpy = jest.fn();
-      (controller as any).logger = { error: errorSpy };
+      const warnSpy = jest.fn();
+      (controller as any).logger = { warn: warnSpy };
 
       await expect(controller.login(validBody)).rejects.toThrow(ServiceUnavailableException);
-      expect(errorSpy).toHaveBeenCalled();
+      expect(warnSpy).toHaveBeenCalled();
     });
 
     it('should log error for unexpected errors', async () => {

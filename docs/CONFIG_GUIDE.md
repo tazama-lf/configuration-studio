@@ -191,10 +191,3 @@ curl -X POST "${API_BASE_URL}/config/rule" \
  -d '@rule.json'
 
 - When editing typologies, ensure rule `id@cfg` strings match existing rule records (the UI dropdown helps).
-
----
-
-If you want, I can:
-
-- Add copy-paste `curl` commands for each example with placeholders.
-- Run a quick smoke test against the services on your machine (you provided SSH and docker info) — I would need you to confirm and provide the auth token or run commands from your side.

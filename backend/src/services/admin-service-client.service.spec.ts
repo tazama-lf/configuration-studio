@@ -60,31 +60,18 @@ describe('AdminServiceClient', () => {
       expect(c).toBeDefined();
     });
 
-    it('should fallback to localhost:5100 when ADMIN_SERVICE_URL is not set', async () => {
+    it('should throw when ADMIN_SERVICE_URL is not set (no localhost fallback)', () => {
       mockConfigService.get.mockReturnValue(undefined);
-      const c = new AdminServiceClient(mockHttpService as any, mockConfigService as any);
-
-      // Verify it uses the fallback URL
-      mockHttpService.get.mockReturnValue(of({ data: {}, status: 200 }));
-      await c.executeHttpRequest('GET', '/test', 'token');
-
-      expect(mockHttpService.get).toHaveBeenCalledWith(
-        'http://localhost:5100/test',
-        { headers: { Authorization: 'Bearer token' } },
-      );
+      expect(
+        () => new AdminServiceClient(mockHttpService as any, mockConfigService as any),
+      ).toThrow('ADMIN_SERVICE_URL is not set in environment variables');
     });
 
-    it('should fallback to localhost:5100 when ADMIN_SERVICE_URL is null', async () => {
+    it('should throw when ADMIN_SERVICE_URL is null (no localhost fallback)', () => {
       mockConfigService.get.mockReturnValue(null);
-      const c = new AdminServiceClient(mockHttpService as any, mockConfigService as any);
-
-      mockHttpService.get.mockReturnValue(of({ data: {}, status: 200 }));
-      await c.executeHttpRequest('GET', '/test', 'token');
-
-      expect(mockHttpService.get).toHaveBeenCalledWith(
-        'http://localhost:5100/test',
-        { headers: { Authorization: 'Bearer token' } },
-      );
+      expect(
+        () => new AdminServiceClient(mockHttpService as any, mockConfigService as any),
+      ).toThrow('ADMIN_SERVICE_URL is not set in environment variables');
     });
 
     it('should include X-Tenant-Id header when tenantId is provided', async () => {

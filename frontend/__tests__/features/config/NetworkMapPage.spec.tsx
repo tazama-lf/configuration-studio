@@ -94,7 +94,13 @@ describe("NetworkMapPage", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockUser = { id: "1", username: "test", tenantId: "default" };
-    mockList.mockResolvedValue({ data: testData, meta: { total: 2, limit: 20, offset: 0 } });
+    // Filter-aware: the active-map pre-check calls list with filters[active]=true
+    // and must receive only the active records, like the real backend does.
+    mockList.mockImplementation((_table, params) => {
+      const filtered = params.filters?.active === "true";
+      const data = filtered ? testData.filter((r) => r.active) : testData;
+      return Promise.resolve({ data, meta: { total: data.length, limit: 20, offset: 0 } });
+    });
     mockCreate.mockResolvedValue({});
     mockUpdate.mockResolvedValue({});
     mockDelete.mockResolvedValue({});
@@ -219,6 +225,59 @@ describe("NetworkMapPage", () => {
     fireEvent.click(screen.getByText("Create"));
     await waitFor(() => expect(mockCreate).toHaveBeenCalled());
     expect(mockCreate).toHaveBeenCalledWith("network_map", expect.objectContaining({ active: false }));
+  });
+
+  it("includes the name field in the create payload", async () => {
+    renderPage();
+    fireEvent.click(screen.getByText("Create New"));
+    await waitFor(() => expect(screen.getByText("Create")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Public Network Map" } });
+    fireEvent.click(screen.getByText("Create"));
+    await waitFor(() => expect(mockCreate).toHaveBeenCalled());
+    expect(mockCreate).toHaveBeenCalledWith(
+      "network_map",
+      expect.objectContaining({ name: "Public Network Map" }),
+    );
+  });
+
+  it("blocks saving when the token has no tenant instead of falling back to a default", async () => {
+    // Issue #43: a missing tenant must not silently write to a "default"
+    // tenant — the save is blocked with a clear message.
+    mockUser = { id: "1", username: "test" };
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId("row-0")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Create New"));
+    await waitFor(() => expect(screen.getByText("Create")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Create"));
+    await waitFor(() =>
+      expect(mockShowError).toHaveBeenCalledWith(
+        "Validation error",
+        "Your session has no tenant context. Please log in again.",
+      ),
+    );
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it("carries the stored name into the edit form and update payload", async () => {    mockList.mockImplementation((_table, params) => {
+      const filtered = params.filters?.active === "true";
+      const data = filtered
+        ? testData.filter((r) => r.active)
+        : [{ ...testData[1], name: "Stored Name" }];
+      return Promise.resolve({ data, meta: { total: data.length, limit: 20, offset: 0 } });
+    });
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId("row-0")).toBeInTheDocument());
+    clickAction("Edit");
+    await waitFor(() => expect(screen.getByText("Save")).toBeInTheDocument());
+    expect(screen.getByLabelText("Name")).toHaveValue("Stored Name");
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(() => expect(mockUpdate).toHaveBeenCalled());
+    expect(mockUpdate).toHaveBeenCalledWith(
+      "network_map",
+      "",
+      "2.0.0",
+      expect.objectContaining({ name: "Stored Name" }),
+    );
   });
 
   it("blocks saving an active map when the tenant already has one", async () => {
@@ -446,6 +505,29 @@ describe("NetworkMapPage", () => {
     await waitFor(() => expect(screen.getByTestId("row-1")).toBeInTheDocument());
     clickAction("Activate");
     await waitFor(() => expect(mockShowError).toHaveBeenCalled());
+  });
+
+  it("shows the friendly error when the already-active map is on another page", async () => {
+    // Issue #37: the visible page holds only the inactive 2.0.0 row; the
+    // active 1.0.0 map lives on another page, so the old current-page check
+    // missed it and activation surfaced a raw DB constraint error.
+    mockList.mockImplementation((_table, params) => {
+      const filtered = params.filters?.active === "true";
+      const data = filtered
+        ? [{ cfg: "1.0.0", active: true, messages: "[]", tenantId: "default" }]
+        : [{ cfg: "2.0.0", active: false, messages: "[]", tenantId: "default" }];
+      return Promise.resolve({ data, meta: { total: data.length, limit: 20, offset: 0 } });
+    });
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId("row-0")).toBeInTheDocument());
+    clickAction("Activate");
+    await waitFor(() =>
+      expect(mockShowError).toHaveBeenCalledWith(
+        "Failed to activate network map",
+        "Network map 1.0.0 is already active. Deactivate it first.",
+      ),
+    );
+    expect(mockActivate).not.toHaveBeenCalled();
   });
 
   it("shows error when activate fails", async () => {
@@ -872,13 +954,16 @@ describe("NetworkMapPage", () => {
     expect(screen.getByText("Create")).toBeInTheDocument();
   });
 
-  it("falls back to the default tenant when the user has no tenantId", async () => {
+  it("blocks the save when the user has no tenantId (no default-tenant fallback)", async () => {
+    // Issue #43: this used to fall back to the "default" tenant and save;
+    // the save must now be blocked with a clear message instead.
     mockUser = { id: "1", username: "test" };
     renderPage();
     fireEvent.click(screen.getByText("Create New"));
     await waitFor(() => expect(screen.getByText("Create")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Create"));
-    await waitFor(() => expect(mockCreate).toHaveBeenCalled());
+    await waitFor(() => expect(mockShowError).toHaveBeenCalled());
+    expect(mockCreate).not.toHaveBeenCalled();
   });
 
   it("opens edit for a record with array messages and no tenantId", async () => {

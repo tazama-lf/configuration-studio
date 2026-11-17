@@ -33,6 +33,8 @@ interface JWTPayload {
   realm_access?: { roles?: string[] };
   tenantId?: string;
   tokenString?: string;
+  /** Expiry (seconds since epoch) of the inner token, when present. */
+  exp?: number;
 }
 
 export class AuthApiService {
@@ -83,13 +85,10 @@ export class AuthApiService {
 
       return (await response.json()) as T;
     } catch (error) {
-      if (error instanceof TypeError && error.message.includes('fetch')) {
-        throw new Error('Network error', { cause: error });
-      }
-      if (
-        error instanceof Error &&
-        error.message.includes('Cannot read properties of undefined')
-      ) {
+      // A fetch TypeError is how the browser reports a failed network
+      // request (DNS, refused connection, offline). Everything else keeps
+      // its original error — matching on message text is brittle.
+      if (error instanceof TypeError) {
         throw new Error('Network error', { cause: error });
       }
       throw error;
@@ -104,10 +103,6 @@ export class AuthApiService {
         body: credentials,
       },
     );
-  }
-
-  async getProfile(): Promise<User> {
-    return await this.authRequest<User>(API_CONFIG.ENDPOINTS.AUTH.PROFILE);
   }
 
   private static decodeBase64Url(base64Url: string): string {
@@ -155,7 +150,9 @@ export class AuthApiService {
         'user',
       email: innerPayload.email ?? payload.email,
       claims: payload.claims ?? innerPayload.realm_access?.roles ?? [],
-      tenantId: (payload.tenantId ?? innerPayload.tenantId)?.toLowerCase(),
+      // Used exactly as the token carries it: the backend matches tenants
+      // case-sensitively, so lowercasing broke tenants with capital letters.
+      tenantId: payload.tenantId ?? innerPayload.tenantId,
     };
   }
 
@@ -169,6 +166,25 @@ export class AuthApiService {
       const payload = JSON.parse(jsonPayload) as JWTPayload;
       const innerPayload = AuthApiService.parseInnerToken(payload);
       return AuthApiService.buildUserFromPayload(payload, innerPayload);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Extract the token's expiry (seconds since epoch), preferring the inner
+   * token's exp when the outer token wraps one. Returns null when the token
+   * carries no exp claim.
+   */
+  static getTokenExpiry(token: string): number | null {
+    try {
+      const [, base64Url] = token.split('.');
+      if (!base64Url) {
+        return null;
+      }
+      const payload = JSON.parse(AuthApiService.decodeBase64Url(base64Url)) as JWTPayload;
+      const innerPayload = AuthApiService.parseInnerToken(payload);
+      return innerPayload.exp ?? payload.exp ?? null;
     } catch {
       return null;
     }

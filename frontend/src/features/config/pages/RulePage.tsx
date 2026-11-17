@@ -70,11 +70,13 @@ export function validateRuleConfig(config: unknown): string | null {
   return null;
 }
 
+import { useTenant } from "../useTenant";
+
 const RulePage: React.FC = () => {
   const { showSuccess, showError } = useToast();
   const { user } = useAuth();
-  const tenantId = user?.tenantId ?? "default";
-  const tenantPrefix = `${tenantId}-`;
+  const { tenantId, missingTenant } = useTenant();
+  const tenantPrefix = tenantId !== undefined ? `${tenantId}-` : '';
   const [records, setRecords] = useState<RuleRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(0);
@@ -187,6 +189,12 @@ const RulePage: React.FC = () => {
     const configError = validateRuleConfig(payload.config);
     if (configError) {
       showError("Validation error", configError);
+      return;
+    }
+    // A token without a tenant must not fall back to a "default" tenant —
+    // the write would target the wrong tenant's data (issue #43).
+    if (missingTenant) {
+      showError("Validation error", "Your session has no tenant context. Please log in again.");
       return;
     }
     // Ensure id and tenantId are correct

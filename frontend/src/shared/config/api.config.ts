@@ -13,8 +13,6 @@ export const API_CONFIG = {
   ENDPOINTS: {
     AUTH: {
       LOGIN: '/auth/login',
-      LOGOUT: '/auth/logout',
-      PROFILE: '/auth/profile',
     },
     CONFIG: {
       NETWORK_MAP: '/config/network-map',

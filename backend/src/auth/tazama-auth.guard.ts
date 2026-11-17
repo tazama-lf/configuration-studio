@@ -3,6 +3,7 @@ import {
   CanActivate,
   ExecutionContext,
   UnauthorizedException,
+  ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
@@ -60,7 +61,10 @@ export class TazamaAuthGuard implements CanActivate {
     );
 
     if (!status) {
-      throw new UnauthorizedException(
+      // The token is valid and the user is authenticated — the failure is
+      // authorization, not authentication, so 403 (not 401) is the correct
+      // status per the issue's acceptance criteria.
+      throw new ForbiddenException(
         `Missing or invalid claims: ${invalid.join(', ')}`,
       );
     }
@@ -81,7 +85,10 @@ export class TazamaAuthGuard implements CanActivate {
       this.logger.debug('Failed to decode inner token, using outer token');
     }
 
-    const actorEmail = innerDecoded.preferred_username as string | undefined;
+    // The email claim is the user's actual email address; preferred_username
+    // is only a login name and was previously copied into both fields.
+    const actorEmail = (innerDecoded.email as string | undefined) ??
+      (innerDecoded.preferred_username as string | undefined);
     const actorName = innerDecoded.preferred_username as string | undefined;
 
     const realmAccess = innerDecoded.realm_access as

@@ -31,26 +31,30 @@ export class AuthService {
       );
     }
 
+    let response: { data: unknown };
     try {
-      const response = await firstValueFrom(
+        response = await firstValueFrom(
         this.httpService.post(`${authUrl}/v1/auth/login`, { username, password }),
       );
+    } catch (error) {
+        this.handleRequestError(error);
+    }
 
-      if (!response.data) {
+    if (!response.data) {
         this.logger.error('Auth service did not return a valid response');
         throw new ServiceUnavailableException(
           'Authentication service unavailable',
         );
-      }
-      this.logger.log('Auth service responded');
-
-      const token = this.extractToken(response.data);
-      const expiresIn = this.extractExpiresIn(response.data);
-
-      return { message: 'Login successful', token, expiresIn };
-    } catch (error) {
-      this.handleLoginError(error, username);
     }
+    this.logger.log('Auth service responded');
+
+    // Token extraction happens outside the request try/catch: a malformed
+    // auth-service response used to be re-caught by the request error handler
+    // and mis-logged as "service unavailable".
+    const token = this.extractToken(response.data);
+    const expiresIn = this.extractExpiresIn(response.data);
+
+    return { message: 'Login successful', token, expiresIn };
   }
 
   private extractToken(data: unknown): string {
@@ -83,14 +87,18 @@ export class AuthService {
     );
   }
 
-  private handleLoginError(error: unknown, username: string): never {
+  /**
+   * Handle a failed request to the auth-service. No username is logged:
+   * credential attempts must not be persisted in logs.
+   */
+  private handleRequestError(error: unknown): never {
     const err = error as { response?: { status?: number; data?: unknown }; message?: string };
     if (err.response?.status === 401) {
-      this.logger.warn(`Invalid credentials for user ${username}`);
+      this.logger.warn('Invalid credentials');
       throw new UnauthorizedException('Invalid credentials');
     }
     if (err.response?.status === 429) {
-      this.logger.warn(`Account locked for user ${username}`);
+      this.logger.warn('Account locked');
       const data = err.response?.data as { message?: string } | undefined;
       throw new HttpException(
         { message: data?.message ?? 'Account is locked. Too many failed attempts.' },

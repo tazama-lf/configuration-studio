@@ -15,9 +15,10 @@ describe('api.config', () => {
     expect(API_CONFIG.DEFAULT_HEADERS.Accept).toBe('application/json');
   });
   it('exports ENDPOINTS.AUTH', () => {
+    // Only LOGIN exists: the backend has no logout/profile routes, so the
+    // dead LOGOUT/PROFILE entries were removed (issue #40).
     expect(API_CONFIG.ENDPOINTS.AUTH.LOGIN).toBe('/auth/login');
-    expect(API_CONFIG.ENDPOINTS.AUTH.LOGOUT).toBe('/auth/logout');
-    expect(API_CONFIG.ENDPOINTS.AUTH.PROFILE).toBe('/auth/profile');
+    expect(Object.keys(API_CONFIG.ENDPOINTS.AUTH)).toEqual(['LOGIN']);
   });
   it('exports ENDPOINTS.CONFIG', () => {
     expect(API_CONFIG.ENDPOINTS.CONFIG.NETWORK_MAP).toBe('/config/network-map');

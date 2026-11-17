@@ -4,8 +4,8 @@ A web application for managing Tazama configuration tables (`network_map`, `rule
 
 ## Architecture
 
-- **backend/** — NestJS 11 thin proxy (port 3011). Forwards auth to `auth-service` and data to `admin-service`.
-- **frontend/** — Vite 7 + React 18 + TypeScript SPA (port 5173). MUI 7 + Ant Design 5 + Tailwind CSS 4.
+- **backend/** — NestJS 11 thin proxy (port 3015). Forwards auth to `auth-service` and data to `admin-service`.
+- **frontend/** — Vite 7 + React 18 + TypeScript SPA (port 5176). MUI 7 + Ant Design 5 + Tailwind CSS 4.
 
 ### Backend Structure
 
@@ -43,8 +43,8 @@ frontend/src/
 │   │   ├── pages/Login.tsx            # Login page (react-hook-form + yup)
 │   │   └── services/authApi.ts        # Auth API client + JWT decoder
 │   ├── config/
-│   │   ├── pages/                     # NetworkMapPage, RulePage, TypologyPage (+ ConfigPages.spec.tsx)
-│   │   ├── components/                # Config editors (NetworkMap, Rule, Typology) (+ ConfigEditors.spec.tsx)
+│   │   ├── pages/                     # NetworkMapPage, RulePage, TypologyPage (specs in __tests__)
+│   │   ├── components/                # Config editors (NetworkMap, Rule, Typology) (specs in __tests__)
 │   │   └── services/configApi.ts      # Config API client (CRUD + pagination)
 │   └── dashboard/
 │       ├── Dashboard.tsx             # Layout shell (AppBar, Drawer, SideNav)
@@ -62,48 +62,50 @@ frontend/src/
 
 ## Quick Start
 
-### Using Workspaces (from root)
-
-```bash
-npm install
-npm run dev:backend    # terminal 1
-npm run dev:frontend   # terminal 2
-```
-
 ### Backend
+
 ```bash
 cd backend
 cp .env.example .env
 npm install
 npm run start:dev
 ```
-Backend runs on `http://localhost:3011`. Swagger at `http://localhost:3011/api/docs`.
+
+Backend runs on `http://localhost:3015`. Swagger at `http://localhost:3015/api/docs` (development only — disabled when `NODE_ENV=production`).
 
 ### Frontend
+
 ```bash
 cd frontend
 npm install --legacy-peer-deps
 npm run dev
 ```
-Frontend runs on `http://localhost:5173`.
+
+Frontend runs on `http://localhost:5176`.
 
 ## API Endpoints
 
 ### Auth
 
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
+| Method | Endpoint      | Description                              | Auth   |
+| ------ | ------------- | ---------------------------------------- | ------ |
 | `POST` | `/auth/login` | Login with username/password → JWT token | Public |
 
 ### Config (all require Bearer token)
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/config/:table` | List records (paginated: `limit`, `offset`, `sort`, `order`, `filters`) |
-| `GET` | `/config/:table/:id/:cfg` | Get a single record by id and cfg |
-| `POST` | `/config/:table` | Create a new record |
-| `PUT` | `/config/:table/:id/:cfg` | Update a record by id and cfg |
-| `DELETE` | `/config/:table/:id/:cfg` | Delete a record by id and cfg |
+| Method   | Endpoint                  | Description                                                             |
+| -------- | ------------------------- | ----------------------------------------------------------------------- |
+| `GET`    | `/config/:table`          | List records (paginated: `limit`, `offset`, `sort`, `order`, `filters`) |
+| `GET`    | `/config/:table/:id/:cfg` | Get a single record by id and cfg                                       |
+| `GET`    | `/config/network-map/:cfg` | Get a network map by cfg (single-key table)                            |
+| `POST`   | `/config/:table`          | Create a new record                                                     |
+| `PUT`    | `/config/:table/:id/:cfg` | Update a record by id and cfg                                           |
+| `PUT`    | `/config/network-map/:cfg` | Update a network map by cfg (single-key table)                         |
+| `DELETE` | `/config/:table/:id/:cfg` | Delete a record by id and cfg                                           |
+| `DELETE` | `/config/network-map/:cfg` | Delete a network map by cfg (single-key table)                        |
+| `POST`   | `/config/network-map/:cfg/activate` | Activate a network map                                       |
+| `POST`   | `/config/network-map/:cfg/deactivate` | Deactivate a network map                                   |
+| `POST`   | `/config/network-map/reload` | Reload the active network map                                    |
 
 Where `:table` is one of `network-map`, `rule`, or `typology`.
 
@@ -119,8 +121,10 @@ DELETE /v1/admin/configuration/{table}/{id}/{cfg}
 
 ## Authentication
 
-- **Backend**: Uses `@tazama-lf/auth-lib` for JWT validation and claim checking. The `TazamaAuthGuard` validates the bearer token, checks required claims via `@RequireClaims()` / `@RequireAnyClaims()` decorators, and injects an `AuthenticatedUser` via the `@User()` decorator.
-- **Frontend**: `AuthContext` manages login/logout state. JWT token is stored in `localStorage`. A fetch interceptor (`interceptor.ts`) redirects to `/login` on `401` responses. Token decoding extracts user info (username, email, claims, tenantId, realm roles).
+- **Backend**: Uses `@tazama-lf/auth-lib` for JWT validation and claim checking. The `TazamaAuthGuard` validates the bearer token, checks required claims via `@RequireClaims()` / `@RequireAnyClaims()` decorators, and injects an `AuthenticatedUser` via the `@User()` decorator. `/auth/login` is rate-limited (5 requests/minute per client).
+- **Frontend**: `AuthContext` manages login/logout state. JWT token is stored in `localStorage`. The token's `exp` claim is checked on startup and an expired session is logged out immediately. A fetch interceptor (`interceptor.ts`) clears the session and redirects to `/login` on `401` responses. Token decoding extracts user info (username, email, claims, tenantId, realm roles).
+
+> **Token storage note:** the JWT lives in `localStorage`, which an XSS vulnerability could read. This is a conscious trade-off for the current deployment; a hardened alternative is an httpOnly cookie set by the backend. Track any move to that model as its own change (it requires a backend cookie endpoint and CSRF protection).
 
 ## Frontend Features
 
@@ -139,32 +143,39 @@ DELETE /v1/admin/configuration/{table}/{id}/{cfg}
 ## Environment
 
 ### Backend
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PORT` | Backend port | `3011` |
-| `NODE_ENV` | Node environment | `development` |
-| `TAZAMA_AUTH_URL` | Auth-service URL | *(required)* |
-| `ADMIN_SERVICE_URL` | Admin-service URL | `http://localhost:5100` |
-| `AUTH_PUBLIC_KEY_PATH` | Keycloak public key path | *(required)* |
-| `CERT_PATH_PUBLIC` | Public certificate path | *(required)* |
-| `FUNCTION_NAME` | Function name | *(required)* |
+
+| Variable               | Description              | Default                 |
+| ---------------------- | ------------------------ | ----------------------- |
+| `PORT`                 | Backend port             | `3015`                  |
+| `NODE_ENV`             | Node environment         | `development`           |
+| `CORS_ORIGINS`         | Comma-separated allowed CORS origins | `http://localhost:5176` |
+| `TAZAMA_AUTH_URL`      | Auth-service URL (base; `/v1/auth/login` is appended) | _(required)_ |
+| `ADMIN_SERVICE_URL`    | Admin-service URL        | _(required)_            |
+| `AUTH_PUBLIC_KEY_PATH` | Keycloak public key path | _(required)_            |
+| `CERT_PATH_PUBLIC`     | Public certificate path  | _(required)_            |
+| `FUNCTION_NAME`        | Function name            | _(required)_            |
+
+> **Production key management:** the `public-key.pem` committed in `backend/` is a development convenience only. In production, mount the key for your environment (secret or volume) and point `CERT_PATH_PUBLIC`/`AUTH_PUBLIC_KEY_PATH` at the mounted path — never trust the repository copy, since a public key in git cannot be rotated per environment.
 
 ### Frontend
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `VITE_API_BASE_URL` | Backend URL | `http://localhost:3011` |
-| `VITE_APP_TITLE` | App title | `Tazama Config Studio` |
-| `VITE_APP_ENV` | App environment | `development` |
-| `VITE_ALLOWED_HOSTS` | Comma-separated allowed hosts (or `all`) | *(none)* |
+
+| Variable             | Description                              | Default                 |
+| -------------------- | ---------------------------------------- | ----------------------- |
+| `VITE_API_BASE_URL`  | Backend URL                              | `http://localhost:3015` |
+| `VITE_APP_TITLE`     | App title                                | `Tazama Config Studio`  |
+| `VITE_APP_ENV`       | App environment                          | `development`           |
+| `VITE_ALLOWED_HOSTS` | Comma-separated allowed hosts (or `all`) | _(none)_                |
 
 ## Key Dependencies
 
 ### Backend
+
 - NestJS 11, `@nestjs/axios`, `@nestjs/config`, `@nestjs/swagger`
-- `@tazama-lf/auth-lib` ^2.1.0, `@tazama-lf/frms-coe-lib` 8.0.0-rc.5
+- `@tazama-lf/auth-lib` 4.0.0, `@tazama-lf/frms-coe-lib` ^8.3.0
 - `jsonwebtoken`, `class-validator`, `class-transformer`
 
 ### Frontend
+
 - React 18, React Router 7, Vite 7
 - MUI 7 (`@mui/material`, `@mui/x-data-grid`), Ant Design 5
 - Tailwind CSS 4, `react-hook-form` + `yup`, `lucide-react`, `react-icons`
@@ -173,19 +184,12 @@ DELETE /v1/admin/configuration/{table}/{id}/{cfg}
 
 This project enforces minimum test coverage thresholds across all packages (backend and frontend). Coverage is measured for lines, branches, functions, and statements.
 
-- **Backend**: 147 tests, 85% threshold for all metrics (98.88% statements achieved)
-- **Frontend**: 198 tests, thresholds: 15% lines/statements, 50% functions, 74% branches
-  - Achieved: 88.4% statements, 74.94% branches, 51.05% functions
+- **Backend**: Jest, 248 tests, 100% threshold for all metrics
+- **Frontend**: Jest, 563 tests, 100% threshold for all metrics
 
 ## Running Coverage Locally
 
-### All packages (from root)
-
-```bash
-npm run test:cov
-```
-
-### Backend only
+### Backend
 
 ```bash
 cd backend
@@ -194,7 +198,7 @@ npm run test:cov
 
 Coverage reports are output to `backend/coverage/` in JSON, LCOV, Clover, and text formats.
 
-### Frontend only
+### Frontend
 
 ```bash
 cd frontend
@@ -205,12 +209,12 @@ Coverage reports are output to `frontend/coverage/` in the same formats.
 
 ## Coverage Configuration
 
-| Package   | Tool  | Config Location     |
-|-----------|-------|---------------------|
-| Backend   | Jest  | `backend/package.json` (`jest` key) |
-| Frontend  | Vitest| `frontend/vite.config.ts` (`test.coverage` key) |
+| Package  | Tool   | Config Location                                  |
+| -------- | ------ | ------------------------------------------------ |
+| Backend  | Jest   | `backend/package.json` (`jest` key)              |
+| Frontend | Jest   | `frontend/jest.config.cjs` (`coverageThreshold`)  |
 
-Both are configured with `coverageThreshold` / `thresholds` for all metrics. Tests will fail locally if coverage drops below the threshold. Backend uses 85% for all metrics; frontend uses lower thresholds for functions and branches due to untested UI components.
+Both are configured with 100% thresholds for all metrics (lines, branches, functions, statements). Tests fail locally if coverage drops below the threshold.
 
 ## Linting
 
@@ -222,9 +226,6 @@ cd backend && npm run lint
 
 # Frontend
 cd frontend && npm run lint
-
-# Both (from root, requires npm v7+ workspaces)
-npm run lint
 ```
 
 > **Note**: The GitLab CI lint pipeline (`.gitlab-ci.yml`) was removed because the available CI runners do not have a compatible Node.js/npm environment (shell executor has Node v14/npm v6 which doesn't support workspace commands or lockfileVersion 3). Linting should be run locally before merging.
