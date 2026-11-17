@@ -257,14 +257,16 @@ describe('ConfigProxyService', () => {
       expect(call?.[1]).toContain(encodeURIComponent('cfg@2'));
     });
 
-    it('should inject updDtTm on update and not overwrite creDtTm if present', async () => {
+    it('should inject updDtTm on update and drop a caller-supplied creDtTm the store cannot confirm', async () => {
+      // Issue #42: creDtTm always comes from the stored record. Here the
+      // store returns no creDtTm, so the supplied value must be dropped.
       const body: Record<string, unknown> = { name: 'original', creDtTm: '2020-01-01T00:00:00.000Z' };
       mockAdminServiceClient.executeHttpRequest.mockResolvedValue({});
 
       await service.update('rule', 'rule-1', '1.0.0', body, 'token', 'tenant-1');
 
       expect(sentBody()).toHaveProperty('updDtTm');
-      expect(sentBody().creDtTm).toBe('2020-01-01T00:00:00.000Z');
+      expect(sentBody()).not.toHaveProperty('creDtTm');
       expect(sentBody()).toHaveProperty('tenantId', 'tenant-1');
     });
 
@@ -301,13 +303,18 @@ describe('ConfigProxyService', () => {
       );
     });
 
-    it('should not read the stored record when the caller supplies creDtTm', async () => {
-      mockAdminServiceClient.executeHttpRequest.mockResolvedValue({});
+    it('should replace a caller-supplied creDtTm with the stored record value', async () => {
+      // Issue #42: creDtTm is audit data — a client must never be able to
+      // rewrite it, so even a supplied value is overwritten from the store.
+      mockAdminServiceClient.executeHttpRequest.mockImplementation((method: string) =>
+        method === 'GET'
+          ? Promise.resolve({ id: 'rule-1', creDtTm: '2019-01-01T00:00:00.000Z' })
+          : Promise.resolve({ updated: true }),
+      );
 
       await service.update('rule', 'rule-1', '1.0.0', { creDtTm: '2020-01-01T00:00:00.000Z' }, 'token', 'tenant-1');
 
-      const methods = mockAdminServiceClient.executeHttpRequest.mock.calls.map((c) => c[0]);
-      expect(methods).toEqual(['PUT']);
+      expect(sentBody().creDtTm).toBe('2019-01-01T00:00:00.000Z');
     });
 
     it('should preserve creDtTm from the stored record when the caller omits it', async () => {
@@ -382,7 +389,7 @@ describe('ConfigProxyService', () => {
       expect(sentBody()).not.toHaveProperty('name');
     });
 
-    it('should not read the stored record when a network map update supplies both name and creDtTm', async () => {
+    it('should not read the stored record when a network map update supplies name and the store has no creDtTm to enforce', async () => {
       mockAdminServiceClient.executeHttpRequest.mockResolvedValue({});
 
       await service.update(
@@ -395,7 +402,10 @@ describe('ConfigProxyService', () => {
       );
 
       const methods = mockAdminServiceClient.executeHttpRequest.mock.calls.map((c) => c[0]);
-      expect(methods).toEqual(['PUT']);
+      // The GET is the creDtTm enforcement read; the caller-supplied value is
+      // dropped because the store has no creDtTm to enforce.
+      expect(methods).toEqual(['GET', 'PUT']);
+      expect(sentBody()).not.toHaveProperty('creDtTm');
     });
 
     it('should not add creDtTm when the stored record has none', async () => {

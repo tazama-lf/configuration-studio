@@ -80,22 +80,27 @@ export default function TypologyConfigEditor({
     flowProcessor: '',
   });
   // ── Fetch rule IDs for dropdown ──────────────────────────────────────────
+  const [ruleOptionsError, setRuleOptionsError] = useState<string | null>(null);
   useEffect(() => {
     const fetchRules = async () => {
       try {
-        const result = await configApi.list<{
+        // listAll pages through every rule instead of capping the dropdown
+        // at the first 100 records.
+        const all = await configApi.listAll<{
           id: string;
           cfg: string;
           desc?: string;
-        }>('rule', {
-          limit: 100,
-          offset: 0,
-        });
+        }>('rule');
         setRuleOptions(
-          result.data.map((r) => ({ id: r.id, cfg: r.cfg, desc: r.desc })),
+          all.map((r) => ({ id: r.id, cfg: r.cfg, desc: r.desc })),
         );
-      } catch {
-        // silently fail — dropdown will just be empty
+        setRuleOptionsError(null);
+      } catch (err) {
+        // A failed fetch used to leave a silently empty dropdown; surface it
+        // so the user knows why the options are missing.
+        setRuleOptionsError(
+          err instanceof Error ? err.message : 'Failed to load rules',
+        );
       }
     };
     fetchRules();
@@ -124,10 +129,21 @@ export default function TypologyConfigEditor({
 
   // ── Build the full config object and emit ────────────────────────────────
   const generatedConfig = useMemo(() => {
+    // Same shape as the preview: omit empty flowProcessor and zero
+    // interdictionThreshold so saved typologies match the stored DB records.
+    const workflowPayload: Record<string, unknown> = {
+      alertThreshold: workflow.alertThreshold,
+    };
+    if (workflow.interdictionThreshold) {
+      workflowPayload.interdictionThreshold = workflow.interdictionThreshold;
+    }
+    if (workflow.flowProcessor) {
+      workflowPayload.flowProcessor = workflow.flowProcessor;
+    }
     const config: Record<string, unknown> = {
       rules,
       expression,
-      workflow,
+      workflow: workflowPayload,
     };
     return config;
   }, [rules, expression, workflow]);
@@ -139,11 +155,19 @@ export default function TypologyConfigEditor({
     if (id) preview.id = id;
     if (cfg) preview.cfg = cfg;
     if (tenantId) preview.tenantId = tenantId;
-    preview.workflow = {
+    // Match the stored DB shape: flowProcessor is absent from every stored
+    // typology and interdictionThreshold exists in only some rows, so empty
+    // string / zero values are omitted instead of always written.
+    const workflowPayload: Record<string, unknown> = {
       alertThreshold: workflow.alertThreshold,
-      interdictionThreshold: workflow.interdictionThreshold,
-      flowProcessor: workflow.flowProcessor,
     };
+    if (workflow.interdictionThreshold) {
+      workflowPayload.interdictionThreshold = workflow.interdictionThreshold;
+    }
+    if (workflow.flowProcessor) {
+      workflowPayload.flowProcessor = workflow.flowProcessor;
+    }
+    preview.workflow = workflowPayload;
     preview.rules = rules;
     preview.expression = expression;
     return JSON.stringify(preview, null, 2);
@@ -393,7 +417,9 @@ export default function TypologyConfigEditor({
                             size="small"
                             fullWidth
                             required
+                            error={ruleOptionsError !== null}
                             helperText={
+                              ruleOptionsError ??
                               selectedDesc ??
                               'Select an existing rule from the dropdown'
                             }

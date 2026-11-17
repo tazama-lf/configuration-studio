@@ -3,17 +3,15 @@ import { render, screen, fireEvent, waitFor, act } from "@testing-library/react"
 import TypologyConfigEditor from "@/features/config/components/TypologyConfigEditor";
 import { configApi } from "@/features/config/services/configApi";
 
-const mockList = configApi.list as jest.MockedFunction<typeof configApi>;
+const mockList = configApi.listAll as unknown as jest.MockedFunction<typeof configApi.list>;
 
 jest.mock("@/features/config/services/configApi", () => ({
   configApi: {
-    list: jest.fn().mockResolvedValue({
-      data: [
-        { id: "rule1", cfg: "1.0.0", desc: "Rule 1" },
-        { id: "rule2", cfg: "2.0.0", desc: "Rule 2" },
-      ],
-      meta: { total: 2, limit: 100, offset: 0 },
-    }),
+    list: jest.fn(),
+    listAll: jest.fn().mockResolvedValue([
+      { id: "rule1", cfg: "1.0.0", desc: "Rule 1" },
+      { id: "rule2", cfg: "2.0.0", desc: "Rule 2" },
+    ]),
   },
 }));
 
@@ -340,6 +338,17 @@ describe("TypologyConfigEditor", () => {
     await waitFor(() => {
       expect(mockList).toHaveBeenCalled();
     });
+    // The fetch failure is surfaced on the rule dropdown instead of leaving
+    // a silently empty list (issue #42). The mocked Autocomplete does not
+    // invoke renderInput, so assert on the TextField props it would receive.
+    fireEvent.click(screen.getByText("Add Rule"));
+    const autocomplete = document.querySelector('[data-testid="mui-autocomplete"]') as HTMLElement;
+    expect(autocomplete).not.toBeNull();
+    const props = getReactProps(autocomplete);
+    const renderInput = props.renderInput as (p: Record<string, unknown>) => { props: Record<string, unknown> };
+    const inputProps = renderInput({}).props as { error?: boolean; helperText?: string };
+    expect(inputProps.error).toBe(true);
+    expect(inputProps.helperText).toBe("Network error");
   });
 
   // ── Autocomplete onChange with string value (with @) ─────────────────────

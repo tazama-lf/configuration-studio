@@ -178,15 +178,20 @@ export class ConfigProxyService {
   }
 
   /**
-   * Restore fields the caller omitted that a full-replace PUT would wipe.
+   * Restore or enforce fields a full-replace PUT would otherwise wipe or let
+   * the caller forge.
    *
    * A PUT replaces the whole stored configuration, so any key the caller omits
    * is deleted. The frontend builds its update payload from the form and does
    * not carry creDtTm forward, which used to silently wipe the creation
    * timestamp on every edit. Network map edits have the same problem for
    * `name`: the UI form has no name field, but every stored network map has
-   * one, so every edit used to clear it. When the caller did not supply
-   * these fields, read the stored record and merge them back in.
+   * one, so every edit used to clear it.
+   *
+   * creDtTm is always taken from the stored record on update — including
+   * when the caller supplies one — so a client can never rewrite the audit
+   * trail. Callers that omit it get the stored value merged back in; callers
+   * that send one get it silently replaced with the stored value.
    */
   private async preserveOmittedFields(
     table: ConfigTable,
@@ -199,18 +204,21 @@ export class ConfigProxyService {
     if (!this.isPlainRecord(body)) {
       return;
     }
-    const preserveCreDtTm = body.creDtTm === undefined;
+    // creDtTm is always enforced from the stored record on update, and a
+    // network map name is preserved when omitted — both need the stored
+    // record, so the fetch is unconditional for object bodies.
     const preserveName = table === 'network_map' && body.name === undefined;
-    if (!preserveCreDtTm && !preserveName) {
-      return;
-    }
 
     const existing = await this.fetchExistingRecord(table, id, cfg, token, tenantId);
     if (!existing) {
       return;
     }
-    if (preserveCreDtTm && existing.creDtTm !== undefined) {
+    if (existing.creDtTm !== undefined) {
       body.creDtTm = existing.creDtTm;
+    } else if (body.creDtTm !== undefined) {
+      // The store has no creation timestamp to enforce — a caller-supplied
+      // value would be a forgery, so drop it.
+      delete body.creDtTm;
     }
     if (preserveName && existing.name !== undefined) {
       body.name = existing.name;

@@ -3,17 +3,24 @@ import { render, screen, fireEvent, waitFor, act } from "@testing-library/react"
 import NetworkMapConfigEditor from "@/features/config/components/NetworkMapConfigEditor";
 import { configApi } from "@/features/config/services/configApi";
 
-const mockList = configApi.list as jest.MockedFunction<typeof configApi>;
+const mockList = configApi.listAll as unknown as jest.MockedFunction<typeof configApi.list>;
 
 jest.mock("@/features/config/services/configApi", () => ({
   configApi: {
-    list: jest.fn().mockResolvedValue({
-      data: [
-        { id: "typo1", cfg: "1.0.0", desc: "Typology 1", rules: [{ id: "rule1", cfg: "1.0.0" }] },
-        { id: "typo2", cfg: "2.0.0", desc: "Typology 2", rules: [] },
-      ],
-      meta: { total: 2, limit: 100, offset: 0 },
-    }),
+    list: jest.fn(),
+    listAll: jest.fn().mockImplementation((table: string) =>
+      Promise.resolve(
+        table === "typology"
+          ? [
+              { id: "typo1", cfg: "1.0.0", desc: "Typology 1", rules: [{ id: "rule1", cfg: "1.0.0" }] },
+              { id: "typo2", cfg: "2.0.0", desc: "Typology 2", rules: [] },
+            ]
+          : [
+              { id: "rule1", cfg: "1.0.0", desc: "Rule 1" },
+              { id: "rule2", cfg: "2.0.0", desc: "Rule 2" },
+            ],
+      ),
+    ),
   },
 }));
 
@@ -672,14 +679,8 @@ describe("NetworkMapConfigEditor", () => {
   it("selectTypology with matching record but undefined rules sets empty rules array", async () => {
     // Override mock to return a typology with no rules property
     mockList
-      .mockResolvedValueOnce({
-        data: [{ id: "typoNoRules", cfg: "1.0.0", desc: "No Rules Typology" }],
-        meta: { total: 1, limit: 100, offset: 0 },
-      })
-      .mockResolvedValueOnce({
-        data: [],
-        meta: { total: 0, limit: 100, offset: 0 },
-      });
+      .mockResolvedValueOnce([{ id: "typoNoRules", cfg: "1.0.0", desc: "No Rules Typology" }])
+      .mockResolvedValueOnce([]);
 
     const { container } = render(<NetworkMapConfigEditor {...defaultProps} />);
     await waitFor(() => {
@@ -702,16 +703,10 @@ describe("NetworkMapConfigEditor", () => {
   it("renders rule description when rule record has desc", async () => {
     // Override mock to return rule records with desc
     mockList
-      .mockResolvedValueOnce({
-        data: [
-          { id: "typo1", cfg: "1.0.0", desc: "Typology 1", rules: [{ id: "rule1", cfg: "1.0.0" }] },
-        ],
-        meta: { total: 1, limit: 100, offset: 0 },
-      })
-      .mockResolvedValueOnce({
-        data: [{ id: "rule1", cfg: "1.0.0", desc: "Rule One Description" }],
-        meta: { total: 1, limit: 100, offset: 0 },
-      });
+      .mockResolvedValueOnce([
+        { id: "typo1", cfg: "1.0.0", desc: "Typology 1", rules: [{ id: "rule1", cfg: "1.0.0" }] },
+      ])
+      .mockResolvedValueOnce([{ id: "rule1", cfg: "1.0.0", desc: "Rule One Description" }]);
 
     const { container } = render(<NetworkMapConfigEditor {...defaultProps} />);
     await waitFor(() => {
