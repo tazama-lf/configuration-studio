@@ -42,6 +42,8 @@ pids
 
 # Test cache
 .vitest-cache/
+test-results/
+playwright-report/
 
 # Caches
 .npm

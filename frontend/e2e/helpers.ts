@@ -1,9 +1,23 @@
 import { type Page, type Locator, expect } from '@playwright/test';
 
 // ─── Credentials ───────────────────────────────────────────────────────────
+// Test credentials come from the environment (E2E_USER / E2E_PASSWORD) so no
+// real account details live in the repository. Export the auth-service
+// seeded dev user for local runs, e.g.:
+//   $env:E2E_USER='<dev-user>'; $env:E2E_PASSWORD='<dev-password>'
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(
+      `Missing ${name} environment variable. Set E2E_USER and E2E_PASSWORD before running the e2e suite (CI secrets or local export).`,
+    );
+  }
+  return value;
+}
+
 export const TEST_CREDENTIALS = {
-  username: 'tazama-user@tazama.org',
-  password: 'password',
+  username: requireEnv('E2E_USER'),
+  password: requireEnv('E2E_PASSWORD'),
 } as const;
 
 // ─── Routes ────────────────────────────────────────────────────────────────

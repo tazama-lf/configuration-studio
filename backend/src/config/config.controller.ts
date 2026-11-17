@@ -50,6 +50,29 @@ export class ConfigController {
   }
 
   /**
+   * Get a single network map by cfg (single-key table)
+   * GET /config/network-map/:cfg
+   *
+   * Must be declared before the :table/:id/:cfg route below, otherwise
+   * the two-segment path matches no route and the request 404s.
+   */
+  @Get('network-map/:cfg')
+  async getNetworkMapById(
+    @Param('cfg') cfg: string,
+    @User() user: AuthenticatedUser,
+  ): Promise<unknown> {
+    const table = this.resolveTable('network-map');
+    // For single-key tables the id path segment is not used by the proxy service.
+    return await this.configProxyService.getById(
+      table,
+      '',
+      cfg,
+      user.token.tokenString,
+      user.tenantId,
+    );
+  }
+
+  /**
    * Get a single record by id and cfg
    * GET /config/:table/:id/:cfg
    */

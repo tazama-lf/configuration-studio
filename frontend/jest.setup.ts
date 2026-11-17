@@ -157,7 +157,7 @@ afterEach(() => {
 // Default Vite-like env for tests
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 (globalThis as any).__VITE_ENV__ = {
-    VITE_API_BASE_URL: 'http://localhost:3011',
+    VITE_API_BASE_URL: 'http://localhost:3015',
     VITE_APP_TITLE: 'Tazama Config Studio',
     VITE_APP_ENV: 'test',
     VITE_ALLOWED_HOSTS: 'all',
