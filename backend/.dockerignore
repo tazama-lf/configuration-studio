@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: Apache-2.0
+
+# Never ship secrets or local state into the build context
+.env
+.env.*
+!.env.example
+
+# Local dependencies and build output (rebuilt inside the image)
+node_modules
+dist
+coverage
+
+# Test artifacts and reports
+test-results
+playwright-report
+.vitest-cache
+
+# Tooling / IDE
+.git
+.github
+.vscode
+.idea
+*.log
+logs
+
+# Docs not needed at runtime
+docs
+*.md
+!README.md

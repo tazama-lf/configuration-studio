@@ -33,4 +33,8 @@ USER node
 
 EXPOSE 3015
 
+# Liveness: /health is the backend's own readiness endpoint.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD wget -qO- http://127.0.0.1:3015/health >/dev/null || exit 1
+
 CMD ["node", "dist/main.js"]
