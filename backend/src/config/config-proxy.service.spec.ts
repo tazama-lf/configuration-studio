@@ -1,4 +1,4 @@
-import { ServiceUnavailableException } from '@nestjs/common';
+import { HttpException, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigProxyService, type ConfigTable } from './config-proxy.service';
 import { AdminServiceClient } from '../services/admin-service-client.service';
 
@@ -416,11 +416,12 @@ describe('ConfigProxyService', () => {
     });
 
     it('should still update when the record is confirmed absent (create-style upsert)', async () => {
-      // A 404-shaped error is a confirmed absent record, not a transient
-      // failure — the update proceeds without preservation.
+      // A 404 from admin-service is a confirmed absent record, not a
+      // transient failure - the update proceeds without preservation.
+      // AdminServiceClient throws HttpException, so mirror that shape.
       mockAdminServiceClient.executeHttpRequest.mockImplementation((method: string) =>
         method === 'GET'
-          ? Promise.reject(Object.assign(new Error('not found'), { response: { status: 404 } }))
+          ? Promise.reject(new HttpException({ message: 'not found', statusCode: 404 }, 404))
           : Promise.resolve({ updated: true }),
       );
 

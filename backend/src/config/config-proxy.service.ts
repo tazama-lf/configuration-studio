@@ -1,4 +1,4 @@
-import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException, HttpException, HttpStatus } from '@nestjs/common';
 import { AdminServiceClient } from '../services/admin-service-client.service';
 
 export type ConfigTable = 'network_map' | 'rule' | 'typology';
@@ -251,8 +251,9 @@ export class ConfigProxyService {
     } catch (error) {
       // A 404 from admin-service is a confirmed absent record: the update
       // may proceed without preservation (create-style upsert).
-      const status = (error as { response?: { status?: number } }).response?.status;
-      if (status === 404) {
+      // AdminServiceClient throws HttpException, so the status comes from
+      // getStatus() — the body's statusCode key is not the HTTP status.
+      if (error instanceof HttpException && error.getStatus() === HttpStatus.NOT_FOUND) {
         return undefined;
       }
       this.logger.warn(
