@@ -130,11 +130,7 @@ export const Login: React.FC = () => {
         <Toolbar sx={{ justifyContent: "space-between" }}>
           <Box sx={{ display: "flex", alignItems: "center" }}>
             <img src={tazamaLogo} alt="Logo" style={{ height: "30px" }} />
-            <Typography variant="body1" sx={{ fontSize: "0.9rem" }}></Typography>
           </Box>
-          <Button color="inherit" sx={{ textTransform: "none", fontSize: "0.9rem" }}>
-            {/* Contact Us */}
-          </Button>
         </Toolbar>
       </AppBar>
 
@@ -229,7 +225,9 @@ export const Login: React.FC = () => {
                 autoComplete="email"
                 autoFocus
                 slotProps={{
-                  htmlInput: { maxLength: 50 },
+                  // Aligned with the yup schema's MAX_EMAIL_LENGTH (100),
+                  // not the old hard-coded 50 (issue #46).
+                  htmlInput: { maxLength: MAX_EMAIL_LENGTH },
                   input: {
                     startAdornment: (
                       <InputAdornment position="start">

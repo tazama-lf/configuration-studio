@@ -32,20 +32,42 @@ Equivalent API (POST /config/rule)
 - URL: POST <API_BASE_URL>/config/rule
 - Body (minimal working example):
 
+```json
 {
-"id": "tenant-001-901@1.0.0",
-"cfg": "1.0.0",
-"desc": "Number of outgoing transactions - debtor",
-"config": {
-"parameters": { "maxQueryRange": 86400000 },
-"exitConditions": [{ "subRuleRef": ".x00", "reason": "Incoming transaction is unsuccessful" }],
-"bands": [
-{ "subRuleRef": ".01", "reason": "one transaction", "upperLimit": 2 },
-{ "subRuleRef": ".02", "reason": "two transactions", "lowerLimit": 2, "upperLimit": 3 },
-{ "subRuleRef": ".03", "reason": "three or more", "lowerLimit": 3 }
-]
+  "id": "tenant-001-901@1.0.0",
+  "cfg": "1.0.0",
+  "desc": "Number of outgoing transactions - debtor",
+  "config": {
+    "parameters": {
+      "maxQueryRange": 86400000
+    },
+    "exitConditions": [
+      {
+        "subRuleRef": ".x00",
+        "reason": "Incoming transaction is unsuccessful"
+      }
+    ],
+    "bands": [
+      {
+        "subRuleRef": ".01",
+        "reason": "one transaction",
+        "upperLimit": 2
+      },
+      {
+        "subRuleRef": ".02",
+        "reason": "two transactions",
+        "lowerLimit": 2,
+        "upperLimit": 3
+      },
+      {
+        "subRuleRef": ".03",
+        "reason": "three or more",
+        "lowerLimit": 3
+      }
+    ]
+  }
 }
-}
+```
 
 Response: 201 Created with stored object (backend will add `creDtTm`/`updDtTm`).
 
@@ -71,44 +93,80 @@ Equivalent API (POST /config/typology)
 - URL: POST <API_BASE_URL>/config/typology
 - Body (minimal working example based on your example):
 
+```json
 {
-"id": "tenant-001-typology-001@1.0.0",
-"cfg": "999@1.0.0",
-"desc": "Typology-999-Rule-901-and-902",
-"tenantId": "tenant-001",
-"rules": [
-{
-"id": "901@1.0.0",
-"cfg": "1.0.0",
-"wghts": [
-{ "ref": ".err", "wght": 0 },
-{ "ref": ".x00", "wght": 100 },
-{ "ref": ".01", "wght": 100 },
-{ "ref": ".02", "wght": 200 },
-{ "ref": ".03", "wght": 400 }
-],
-"termId": "v901at100at100"
-},
-{
-"id": "902@1.0.0",
-"cfg": "1.0.0",
-"wghts": [
-{ "ref": ".err", "wght": 0 },
-{ "ref": ".x00", "wght": 100 },
-{ "ref": ".01", "wght": 100 },
-{ "ref": ".02", "wght": 200 },
-{ "ref": ".03", "wght": 400 }
-],
-"termId": "v902at100at100"
+  "id": "tenant-001-typology-001@1.0.0",
+  "cfg": "999@1.0.0",
+  "desc": "Typology-999-Rule-901-and-902",
+  "tenantId": "tenant-001",
+  "rules": [
+    {
+      "id": "901@1.0.0",
+      "cfg": "1.0.0",
+      "wghts": [
+        {
+          "ref": ".err",
+          "wght": 0
+        },
+        {
+          "ref": ".x00",
+          "wght": 100
+        },
+        {
+          "ref": ".01",
+          "wght": 100
+        },
+        {
+          "ref": ".02",
+          "wght": 200
+        },
+        {
+          "ref": ".03",
+          "wght": 400
+        }
+      ],
+      "termId": "v901at100at100"
+    },
+    {
+      "id": "902@1.0.0",
+      "cfg": "1.0.0",
+      "wghts": [
+        {
+          "ref": ".err",
+          "wght": 0
+        },
+        {
+          "ref": ".x00",
+          "wght": 100
+        },
+        {
+          "ref": ".01",
+          "wght": 100
+        },
+        {
+          "ref": ".02",
+          "wght": 200
+        },
+        {
+          "ref": ".03",
+          "wght": 400
+        }
+      ],
+      "termId": "v902at100at100"
+    }
+  ],
+  "workflow": {
+    "flowProcessor": "EFRuP@1.0.0",
+    "alertThreshold": 30,
+    "interdictionThreshold": 50
+  },
+  "expression": [
+    "Add",
+    "v901at100at100",
+    "v902at100at100"
+  ]
 }
-],
-"workflow": {
-"flowProcessor": "EFRuP@1.0.0",
-"alertThreshold": 30,
-"interdictionThreshold": 50
-},
-"expression": ["Add", "v901at100at100", "v902at100at100"]
-}
+```
 
 Response: 201 Created.
 
@@ -131,31 +189,42 @@ Equivalent API (POST /config/network-map)
 - URL: POST <API_BASE_URL>/config/network-map
 - Body (minimal working example):
 
+```json
 {
-"cfg": "1.0.0",
-"name": "Public Network Map",
-"active": true,
-"messages": [
-{
-"id": "004@1.0.0",
-"cfg": "1.0.0",
-"txTp": "pacs.002.001.12",
-"typologies": [
-{
-"id": "tenant-001-typology-001@1.0.0",
-"cfg": "999@1.0.0",
-"rules": [
-{ "id": "EFRuP@1.0.0", "cfg": "none" },
-{ "id": "901@1.0.0", "cfg": "1.0.0" },
-{ "id": "902@1.0.0", "cfg": "1.0.0" }
-],
-"tenantId": "tenant-001"
+  "cfg": "1.0.0",
+  "name": "Public Network Map",
+  "active": true,
+  "messages": [
+    {
+      "id": "004@1.0.0",
+      "cfg": "1.0.0",
+      "txTp": "pacs.002.001.12",
+      "typologies": [
+        {
+          "id": "tenant-001-typology-001@1.0.0",
+          "cfg": "999@1.0.0",
+          "rules": [
+            {
+              "id": "EFRuP@1.0.0",
+              "cfg": "none"
+            },
+            {
+              "id": "901@1.0.0",
+              "cfg": "1.0.0"
+            },
+            {
+              "id": "902@1.0.0",
+              "cfg": "1.0.0"
+            }
+          ],
+          "tenantId": "tenant-001"
+        }
+      ]
+    }
+  ],
+  "tenantId": "tenant-001"
 }
-]
-}
-],
-"tenantId": "tenant-001"
-}
+```
 
 After creating a network map, call the activate endpoint if needed:
 POST <API_BASE_URL>/config/network-map/1.0.0/activate

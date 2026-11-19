@@ -1,5 +1,5 @@
 export const APACHE_LICENSE_URL =
-  'https://github.com/tazama-lf/config-studio/blob/main/LICENSE';
+  'https://github.com/tazama-lf/configuration-studio/blob/dev/LICENSE';
 
 // Shared field length limits for Rule/Typology/Network Map config forms
 export const MAX_ID_LENGTH = 50;
