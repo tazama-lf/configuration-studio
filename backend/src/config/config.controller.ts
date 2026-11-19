@@ -53,8 +53,9 @@ export class ConfigController {
    * Get a single network map by cfg (single-key table)
    * GET /config/network-map/:cfg
    *
-   * Must be declared before the :table/:id/:cfg route below, otherwise
-   * the two-segment path matches no route and the request 404s.
+   * The two-segment path cannot match the three-segment :table/:id/:cfg
+   * route, so this route's declaration order is irrelevant — the earlier
+   * 404 was simply a missing route, not a shadowing problem.
    */
   @Get('network-map/:cfg')
   async getNetworkMapById(

@@ -112,7 +112,7 @@ cfg, active, messages, tenantId
 | Field                                     | DB   | Studio | Diff |
 |-------------------------------------------|------|--------|------|
 | `cfg`, `active`, `tenantId`               | REQ  | emitted | OK |
-| `name`                                    | REQ  | **not emitted** | **MISSING in studio** |
+| `name`                                    | REQ  | emitted (required in form; omitted when blank so the backend preserves the stored value) | **OK — resolved in this PR** |
 | `creDtTm`                                 | REQ  | server-injected | OK |
 | `updDtTm`                                 | never | server-injected | **EXTRA in studio** |
 | `messages[].{id,cfg,txTp}`                | REQ  | emitted | OK |
@@ -121,9 +121,9 @@ cfg, active, messages, tenantId
 | `rules[].{id,cfg}`                        | REQ  | emitted | OK |
 
 **Network map verdict: one blocker + additive diffs.**
-1. **Missing `name`** — required by DB, not in editor at all
-2. `updDtTm` written (DB never has it here)
-3. Per-typology `tenantId` written (DB never has it there)
+1. ~~**Missing `name`**~~ — **resolved**: the editor emits `name` (required in the form), and the backend preserves the stored value when the caller omits it
+2. `updDtTm` written (DB never has it here) — parked with the TMS owners
+3. Per-typology `tenantId` written (DB never has it there) — parked with the TMS owners
 
 ---
 
@@ -131,11 +131,11 @@ cfg, active, messages, tenantId
 
 - **Rules:** compatible.
 - **Typologies:** superset — extra fields don't break the DB but output isn't identical.
-- **Network maps:** **`name` field is missing entirely.** Studio-saved network maps would be missing a field that all DB records have. Fix required.
+- **Network maps:** ~~`name` field is missing entirely~~ **`name` resolved** — the editor emits it and the backend preserves it on update. Remaining diffs (`updDtTm`, per-typology `tenantId`) are parked with the TMS owners.
 
 ## Required fixes to match DB shape
 
-1. **Add `name` to the network map editor** and include it in the emitted payload ([NetworkMapConfigEditor.tsx:115-122](../home/ak/workspace/config-studio/frontend/src/features/config/components/NetworkMapConfigEditor.tsx#L115-L122)).
+1. ~~**Add `name` to the network map editor** and include it in the emitted payload~~ — **done**: the form requires a name and the payload includes it (blank names are omitted so the backend preserves the stored value).
 2. **Stop injecting `updDtTm` for typology and network_map** — restrict [config-proxy.service.ts:159-172](../home/ak/workspace/config-studio/backend/src/config/config-proxy.service.ts#L159-L172) to `rule` only, or drop `updDtTm` from those payloads before persisting.
 3. **Remove per-typology `tenantId`** from network-map emission ([NetworkMapConfigEditor.tsx:151](../home/ak/workspace/config-studio/frontend/src/features/config/components/NetworkMapConfigEditor.tsx#L151)).
 4. **Omit `flowProcessor` from typology `workflow`** when empty ([TypologyConfigEditor.tsx:136-140](../home/ak/workspace/config-studio/frontend/src/features/config/components/TypologyConfigEditor.tsx#L136-L140)) — or drop the field entirely if there's no plan to use it.

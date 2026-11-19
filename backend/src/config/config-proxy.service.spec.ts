@@ -1,3 +1,4 @@
+import { ServiceUnavailableException } from '@nestjs/common';
 import { ConfigProxyService, type ConfigTable } from './config-proxy.service';
 import { AdminServiceClient } from '../services/admin-service-client.service';
 
@@ -398,6 +399,36 @@ describe('ConfigProxyService', () => {
       expect(methods).toEqual(['PUT']);
     });
 
+    it('should reject the update when the preservation read fails, instead of wiping the protected fields', async () => {
+      // Review follow-up: a transient GET failure must not let the
+      // full-replace PUT through — that would delete the stored name.
+      mockAdminServiceClient.executeHttpRequest.mockImplementation((method: string) =>
+        method === 'GET' ? Promise.reject(new Error('transient')) : Promise.resolve({ updated: true }),
+      );
+
+      await expect(
+        service.update('network_map', 'ignored-id', '2.0.0', { messages: [] }, 'token', 'tenant-1'),
+      ).rejects.toThrow(ServiceUnavailableException);
+
+      // No PUT may be sent.
+      const methods = mockAdminServiceClient.executeHttpRequest.mock.calls.map((c) => c[0]);
+      expect(methods).toEqual(['GET']);
+    });
+
+    it('should still update when the record is confirmed absent (create-style upsert)', async () => {
+      // A 404-shaped error is a confirmed absent record, not a transient
+      // failure — the update proceeds without preservation.
+      mockAdminServiceClient.executeHttpRequest.mockImplementation((method: string) =>
+        method === 'GET'
+          ? Promise.reject(Object.assign(new Error('not found'), { response: { status: 404 } }))
+          : Promise.resolve({ updated: true }),
+      );
+
+      await service.update('network_map', 'ignored-id', '2.0.0', { name: 'nm' }, 'token', 'tenant-1');
+
+      expect(sentBody().name).toBe('nm');
+    });
+
     it('should not add creDtTm when the stored record has none', async () => {
       mockAdminServiceClient.executeHttpRequest.mockImplementation((method: string) =>
         method === 'GET' ? Promise.resolve({ id: 'rule-1' }) : Promise.resolve({}),
@@ -418,15 +449,17 @@ describe('ConfigProxyService', () => {
       expect(sentBody()).not.toHaveProperty('creDtTm');
     });
 
-    it('should still perform the update when the stored record cannot be read', async () => {
+    it('should reject the update when the stored record cannot be read (a transient failure)', async () => {
+      // Review follow-up: proceeding after a failed preservation read would
+      // wipe the protected fields via the full-replace PUT.
       mockAdminServiceClient.executeHttpRequest.mockImplementation((method: string) =>
-        method === 'GET' ? Promise.reject(new Error('not found')) : Promise.resolve({ ok: true }),
+        method === 'GET' ? Promise.reject(new Error('connection reset')) : Promise.resolve({ ok: true }),
       );
 
-      const result = await service.update('rule', 'missing', '1.0.0', { name: 'updated' }, 'token');
-
-      expect(result).toEqual({ ok: true });
-      expect(sentBody()).not.toHaveProperty('creDtTm');
+      await expect(
+        service.update('rule', 'missing', '1.0.0', { name: 'updated' }, 'token'),
+      ).rejects.toThrow(ServiceUnavailableException);
+      expect(putCall()).toBeUndefined();
     });
 
     it('should not read the stored record for a non-object body', async () => {
