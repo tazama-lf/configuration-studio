@@ -1,13 +1,23 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../features/auth/contexts/AuthContext';
 import Login from '../features/auth/pages/Login';
 import Dashboard from '../features/dashboard/Dashboard';
-import NetworkMapPage from '../features/config/pages/NetworkMapPage';
-import RulePage from '../features/config/pages/RulePage';
-import TypologyPage from '../features/config/pages/TypologyPage';
 import { ROUTES } from '../shared/config/routes.config';
 import { setupFetch401Interceptor } from '../utils/common/interceptor';
+import Loader from '../shared/components/ui/Loader';
+
+// Code-split the config pages (issue #46): each page becomes its own chunk
+// so the initial login/dashboard bundle stays small.
+const NetworkMapPage = lazy(() =>
+  import('../features/config/pages/NetworkMapPage').then((m) => ({ default: m.default })),
+);
+const RulePage = lazy(() =>
+  import('../features/config/pages/RulePage').then((m) => ({ default: m.default })),
+);
+const TypologyPage = lazy(() =>
+  import('../features/config/pages/TypologyPage').then((m) => ({ default: m.default })),
+);
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated } = useAuth();
@@ -50,15 +60,27 @@ export const AppRoutes: React.FC = () => {
         <Route path={ROUTES.DASHBOARD} element={<div />} />
         <Route
           path={ROUTES.NETWORK_MAP}
-          element={<NetworkMapPage />}
+          element={
+            <Suspense fallback={<Loader />}>
+              <NetworkMapPage />
+            </Suspense>
+          }
         />
         <Route
           path={ROUTES.RULE}
-          element={<RulePage />}
+          element={
+            <Suspense fallback={<Loader />}>
+              <RulePage />
+            </Suspense>
+          }
         />
         <Route
           path={ROUTES.TYPOLOGY}
-          element={<TypologyPage />}
+          element={
+            <Suspense fallback={<Loader />}>
+              <TypologyPage />
+            </Suspense>
+          }
         />
       </Route>
       <Route path="*" element={<Navigate to={ROUTES.LOGIN} replace />} />
