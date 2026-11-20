@@ -227,11 +227,6 @@ export class ConfigProxyService {
 
   /**
    * Read the stored record so update() can preserve fields the caller omitted.
-   * Failures are non-fatal: the record may not exist yet, or admin-service may
-   * be unreachable, and the update itself is what reports those outcomes.
-   */
-  /**
-   * Read the stored record so update() can preserve fields the caller omitted.
    * A failed read is distinguished from a confirmed-absent record: the
    * returned marker tells update() whether the stored record is known to not
    * exist (safe to proceed without preservation) or whether the read failed

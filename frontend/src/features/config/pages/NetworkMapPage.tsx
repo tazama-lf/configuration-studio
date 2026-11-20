@@ -257,17 +257,14 @@ const NetworkMapPage: React.FC = () => {
           return;
         }
       }
-      // name is required in the DB (docs/report.md): an empty value would
-      // bypass the backend's omitted-name preservation and store "".
+      // The form requires a name, so it is always present here.
       const payload: Record<string, unknown> = {
         cfg: formData.cfg,
+        name: formData.name.trim(),
         active: formData.active,
         messages: parsedMessages,
         tenantId,
       };
-      if (formData.name.trim()) {
-        payload.name = formData.name.trim();
-      }
       if (dialogMode === "create") {
         await configApi.create("network_map", payload);
         showSuccess("Network map created successfully");

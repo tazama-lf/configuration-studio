@@ -112,7 +112,7 @@ cfg, active, messages, tenantId
 | Field                                     | DB   | Studio | Diff |
 |-------------------------------------------|------|--------|------|
 | `cfg`, `active`, `tenantId`               | REQ  | emitted | OK |
-| `name`                                    | REQ  | emitted (required in form; omitted when blank so the backend preserves the stored value) | **OK — resolved in this PR** |
+| `name`                                    | REQ  | emitted (required in the form; the backend also preserves the stored value on update) | **OK — resolved in this PR** |
 | `creDtTm`                                 | REQ  | server-injected | OK |
 | `updDtTm`                                 | never | server-injected | **EXTRA in studio** |
 | `messages[].{id,cfg,txTp}`                | REQ  | emitted | OK |
@@ -135,7 +135,7 @@ cfg, active, messages, tenantId
 
 ## Required fixes to match DB shape
 
-1. ~~**Add `name` to the network map editor** and include it in the emitted payload~~ — **done**: the form requires a name and the payload includes it (blank names are omitted so the backend preserves the stored value).
+1. ~~**Add `name` to the network map editor** and include it in the emitted payload~~ — **done**: the form requires a name and always sends it; the backend also preserves the stored value on update.
 2. **Stop injecting `updDtTm` for typology and network_map** — restrict [config-proxy.service.ts:159-172](../home/ak/workspace/config-studio/backend/src/config/config-proxy.service.ts#L159-L172) to `rule` only, or drop `updDtTm` from those payloads before persisting. The `network_map` part is pending TMS confirmation.
 3. **Remove per-typology `tenantId`** from network-map emission ([NetworkMapConfigEditor.tsx:151](../home/ak/workspace/config-studio/frontend/src/features/config/components/NetworkMapConfigEditor.tsx#L151)). Pending TMS confirmation.
 4. **Omit `flowProcessor` from typology `workflow`** when empty ([TypologyConfigEditor.tsx:136-140](../home/ak/workspace/config-studio/frontend/src/features/config/components/TypologyConfigEditor.tsx#L136-L140)) — or drop the field entirely if there's no plan to use it.
