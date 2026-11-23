@@ -469,6 +469,7 @@ const NetworkMapPage: React.FC = () => {
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 disabled={isReadOnly}
+                required
                 fullWidth
                 slotProps={{ htmlInput: { maxLength: MAX_DESCRIPTION_LENGTH } }}
                 helperText="Display name of the network map"
