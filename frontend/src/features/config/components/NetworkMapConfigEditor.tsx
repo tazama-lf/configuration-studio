@@ -31,7 +31,6 @@ interface TypologyRef {
   id: string;
   cfg: string;
   rules: RuleRef[];
-  tenantId: string;
 }
 
 interface Message {
@@ -46,6 +45,7 @@ interface NetworkMapConfigEditorProps {
   onChange: (json: string) => void;
   readOnly?: boolean;
   cfg?: string;
+  name?: string;
   active?: boolean;
   tenantId?: string;
   hideJsonPreview?: boolean;
@@ -59,6 +59,7 @@ export default function NetworkMapConfigEditor({
   onChange,
   readOnly = false,
   cfg,
+  name,
   active,
   tenantId,
   hideJsonPreview = false,
@@ -121,11 +122,12 @@ export default function NetworkMapConfigEditor({
   const fullPreviewJson = useMemo(() => {
     const preview: Record<string, unknown> = {};
     if (cfg) preview.cfg = cfg;
+    if (name) preview.name = name;
     if (active !== undefined) preview.active = active;
     preview.messages = messages;
     if (tenantId) preview.tenantId = tenantId;
     return JSON.stringify(preview, null, 2);
-  }, [messages, cfg, active, tenantId]);
+  }, [messages, cfg, name, active, tenantId]);
 
   useEffect(() => {
     if (generatedJson !== value) {
@@ -158,7 +160,7 @@ export default function NetworkMapConfigEditor({
   const addTypology = (msgIdx: number) => {
     const msg = messages[msgIdx];
     updateMessage(msgIdx, {
-      typologies: [...msg.typologies, { id: '', cfg: '', rules: [], tenantId: tenantId ?? 'default' }],
+      typologies: [...msg.typologies, { id: '', cfg: '', rules: [] }],
     });
   };
 

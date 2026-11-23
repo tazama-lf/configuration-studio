@@ -60,7 +60,7 @@ export class ConfigProxyService {
     if (body !== null && typeof body === 'object') {
       (body as Record<string, unknown>).tenantId = tenantId;
     }
-    const bodyWithTimestamps = this.injectTimestamps(body, true);
+    const bodyWithTimestamps = this.injectTimestamps(table, body, true);
     return await this.adminServiceClient.executeHttpRequest('POST', path, token, tenantId, bodyWithTimestamps);
   }
 
@@ -85,7 +85,7 @@ export class ConfigProxyService {
     if (body !== null && typeof body === 'object') {
       (body as Record<string, unknown>).tenantId = tenantId;
     }
-    const bodyWithTimestamps = this.injectTimestamps(body, false);
+    const bodyWithTimestamps = this.injectTimestamps(table, body, false);
     await this.preserveOmittedFields(table, id, cfg, bodyWithTimestamps, token, tenantId);
     return await this.adminServiceClient.executeHttpRequest('PUT', path, token, tenantId, bodyWithTimestamps);
   }
@@ -158,11 +158,14 @@ export class ConfigProxyService {
 
   /**
    * Inject creDtTm and updDtTm timestamps into the request body.
-   * On create: both creDtTm and updDtTm are set to the current time.
-   * On update: only updDtTm is refreshed; creDtTm is preserved by
-   * preserveOmittedFields().
+   *
+   * On create we stamp both for every table. On update, `creDtTm` must never be
+   * caller-controlled, so it is never stamped here (preserveOmittedFields keeps
+   * the stored value). `updDtTm` is only stamped for `rule`: admin-service's own
+   * repositories stamp `updDtTm` for network_map and typology, and those stored
+   * records never carry it, so adding it here would diverge from the DB shape.
    */
-  private injectTimestamps(body: unknown, isCreate: boolean): unknown {
+  private injectTimestamps(table: ConfigTable, body: unknown, isCreate: boolean): unknown {
     if (body === null || typeof body !== 'object') {
       return body;
     }
@@ -171,7 +174,7 @@ export class ConfigProxyService {
     if (isCreate) {
       record.creDtTm = now;
       record.updDtTm = now;
-    } else {
+    } else if (table === 'rule') {
       record.updDtTm = now;
     }
     return record;
@@ -183,10 +186,15 @@ export class ConfigProxyService {
    * A PUT replaces the whole stored configuration, so any key the caller omits
    * is deleted. The frontend builds its update payload from the form and does
    * not carry creDtTm forward, which used to silently wipe the creation
-   * timestamp on every edit. Network map edits have the same problem for
-   * `name`: the UI form has no name field, but every stored network map has
-   * one, so every edit used to clear it. When the caller did not supply
-   * these fields, read the stored record and merge them back in.
+   * timestamp on every edit. `creDtTm` is merged back from the stored record
+   * whenever it is omitted; if that read fails we proceed without it rather
+   * than blocking every rule/typology edit (the field is recoverable, not
+   * identity-bearing, and admin-service stamps its own timestamps).
+   *
+   * `name` is different: it is a required identity field on network maps, so
+   * a network-map update that omits it cannot proceed if the preservation read
+   * fails — a full-replace PUT would erase the stored name. In that case we
+   * reject the update with a retryable 503 rather than silently lose data.
    */
   private async preserveOmittedFields(
     table: ConfigTable,
@@ -207,12 +215,15 @@ export class ConfigProxyService {
 
     const existing = await this.fetchExistingRecord(table, id, cfg, token, tenantId);
     if (existing === null) {
-      // The preservation read failed (transient admin-service error). A
-      // full-replace PUT now would wipe the very fields this mechanism
-      // protects, so reject the update and let the client retry.
-      throw new ServiceUnavailableException(
-        'Could not read the stored record to preserve its fields. Please retry.',
-      );
+      // The preservation read failed (transient admin-service error).
+      if (preserveName) {
+        // Losing a network map's name is unacceptable - reject and retry.
+        throw new ServiceUnavailableException(
+          'Could not read the stored network map to preserve its name. Please retry.',
+        );
+      }
+      // Otherwise carry on without creDtTm (see docstring).
+      return;
     }
     if (!existing) {
       return;
@@ -245,16 +256,25 @@ export class ConfigProxyService {
       return this.isPlainRecord(existing) ? existing : undefined;
     } catch (error) {
       // A 404 from admin-service is a confirmed absent record: the update
-      // may proceed without preservation (create-style upsert).
+      // may proceed without preservation (create-style upsert). Any other
+      // deliberate 4xx (400/401/403/...) is the client's real problem and must
+      // surface as-is - turning a 403 into a 503 "please retry" would hide
+      // the actual cause. Only 5xx / connection failures are transient.
       // AdminServiceClient throws HttpException, so the status comes from
       // getStatus() — the body's statusCode key is not the HTTP status.
-      if (error instanceof HttpException && error.getStatus() === HttpStatus.NOT_FOUND) {
-        return undefined;
+      if (error instanceof HttpException) {
+        const status = error.getStatus();
+        if (status === HttpStatus.NOT_FOUND) {
+          return undefined;
+        }
+        if (status < HttpStatus.INTERNAL_SERVER_ERROR) {
+          throw error;
+        }
       }
       this.logger.warn(
         `Could not read existing ${table} ${id}/${cfg} to preserve omitted fields: ${(error as Error).message}`,
       );
-      // null = the read failed (transient); undefined = confirmed absent.
+      // null = the read failed (transient 5xx / network); undefined = confirmed absent.
       return null;
     }
   }

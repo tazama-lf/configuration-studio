@@ -3,7 +3,9 @@ import {
   BadRequestException,
   HttpException,
   HttpStatus,
+  RequestMethod,
 } from '@nestjs/common';
+import { PATH_METADATA, METHOD_METADATA } from '@nestjs/common/constants';
 import { ConfigController } from './config.controller';
 import { ConfigProxyService } from './config-proxy.service';
 import { TazamaAuthGuard } from '../auth/tazama-auth.guard';
@@ -50,6 +52,7 @@ describe('ConfigController', () => {
 
   const validNetworkMapBody = {
     cfg: '1.0.0',
+    name: 'Test Map',
     messages: [],
     active: false,
   };
@@ -342,7 +345,7 @@ describe('ConfigController', () => {
     });
 
     it('should call updateNetworkMap and pass empty id to proxy update', async () => {
-      const body = { cfg: '1.2.3', messages: [], active: true };
+      const body = { cfg: '1.2.3', name: 'Test Map', messages: [], active: true };
       mockConfigProxyService.update.mockResolvedValue({});
 
       await controller.updateNetworkMap('1.2.3', body, mockUser as any);
@@ -394,6 +397,19 @@ it('should pass null body through reload when provided', async () => {
         expect((error as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
         expect((error as Error).message).toBe('Invalid table: foobar');
       });
+    });
+  });
+
+  describe('route registration', () => {
+    // Pins the route that #37 was missing: if @Get('network-map/:cfg') is
+    // removed the endpoint 404s again, so assert the metadata directly.
+    it('registers GET network-map/:cfg on getNetworkMapById', () => {
+      expect(Reflect.getMetadata(PATH_METADATA, ConfigController.prototype.getNetworkMapById)).toBe(
+        'network-map/:cfg',
+      );
+      expect(Reflect.getMetadata(METHOD_METADATA, ConfigController.prototype.getNetworkMapById)).toBe(
+        RequestMethod.GET,
+      );
     });
   });
 });

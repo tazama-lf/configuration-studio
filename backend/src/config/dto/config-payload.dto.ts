@@ -1,4 +1,4 @@
-import { IsArray, IsBoolean, IsObject, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsBoolean, IsObject, IsOptional, IsString, IsNotEmpty, MaxLength } from 'class-validator';
 
 /**
  * Payload shapes accepted by the /config/* write endpoints.
@@ -64,7 +64,13 @@ export class NetworkMapPayloadDto extends BaseConfigPayloadDto {
     @IsBoolean()
     active?: boolean;
 
-    @IsOptional()
+    /**
+     * Required and non-blank on write (docs/report.md lists `name` as a
+     * required field; the UI enforces 250 chars). A blank string is rejected
+     * rather than treated as "omitted", so a direct API call cannot store "".
+     */
     @IsString()
-    name?: string;
+    @IsNotEmpty()
+    @MaxLength(250)
+    name!: string;
 }

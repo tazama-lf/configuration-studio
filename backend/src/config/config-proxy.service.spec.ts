@@ -450,17 +450,40 @@ describe('ConfigProxyService', () => {
       expect(sentBody()).not.toHaveProperty('creDtTm');
     });
 
-    it('should reject the update when the stored record cannot be read (a transient failure)', async () => {
-      // Review follow-up: proceeding after a failed preservation read would
-      // wipe the protected fields via the full-replace PUT.
+    it('rejects a network-map update with 503 when the preservation read fails (name would be lost)', async () => {
+      // Losing a network map's name is unacceptable, so a failed read blocks
+      // the update instead of letting a full-replace PUT wipe it.
       mockAdminServiceClient.executeHttpRequest.mockImplementation((method: string) =>
         method === 'GET' ? Promise.reject(new Error('connection reset')) : Promise.resolve({ ok: true }),
       );
 
       await expect(
-        service.update('rule', 'missing', '1.0.0', { name: 'updated' }, 'token'),
+        service.update('network_map', 'ignored-id', '2.0.0', { messages: [] }, 'token'),
       ).rejects.toThrow(ServiceUnavailableException);
       expect(putCall()).toBeUndefined();
+    });
+
+    it('proceeds with a rule update when the preservation read fails (creDtTm is recoverable)', async () => {
+      // Rule/typology edits must not be blocked by a transient read failure;
+      // admin-service stamps its own timestamps, so carrying on is safe.
+      mockAdminServiceClient.executeHttpRequest.mockImplementation((method: string) =>
+        method === 'GET' ? Promise.reject(new Error('connection reset')) : Promise.resolve({ ok: true }),
+      );
+
+      const result = await service.update('rule', 'rule-1', '1.0.0', { name: 'updated' }, 'token');
+      expect(result).toEqual({ ok: true });
+    });
+
+    it('rethrows a 4xx preservation-read failure as-is instead of a 503', async () => {
+      mockAdminServiceClient.executeHttpRequest.mockImplementation((method: string) =>
+        method === 'GET'
+          ? Promise.reject(new HttpException({ message: 'forbidden', statusCode: 403 }, 403))
+          : Promise.resolve({ ok: true }),
+      );
+
+      await expect(
+        service.update('network_map', 'ignored-id', '2.0.0', { messages: [] }, 'token'),
+      ).rejects.toThrow(HttpException);
     });
 
     it('should not read the stored record for a non-object body', async () => {
@@ -554,6 +577,22 @@ describe('ConfigProxyService', () => {
   });
 
   describe('buildQueryString (private, tested via list)', () => {
+    it('forwards filters[active] through to the admin-service path unchanged', async () => {
+      // The active-map check depends on the bracketed key surviving the proxy
+      // hop; if it is rewritten or dropped, the lookup silently returns the
+      // wrong page and the cross-page guard breaks.
+      mockAdminServiceClient.executeHttpRequest.mockResolvedValue({ data: [], meta: { total: 0 } });
+
+      await service.list('network_map', 'token', {
+        limit: '1',
+        offset: '0',
+        'filters[active]': 'true',
+      });
+
+      const call = mockAdminServiceClient.executeHttpRequest.mock.calls[0];
+      expect(call[1]).toContain('filters%5Bactive%5D=true');
+    });
+
     it('should handle filters as JSON string', async () => {
       mockAdminServiceClient.executeHttpRequest.mockResolvedValue({});
 

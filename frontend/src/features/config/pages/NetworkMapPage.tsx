@@ -491,6 +491,7 @@ const NetworkMapPage: React.FC = () => {
                 onChange={(json) => setFormData({ ...formData, messages: json })}
                 readOnly={isReadOnly}
                 cfg={formData.cfg}
+                name={formData.name}
                 active={formData.active}
                 tenantId={tenantId}
                 hideJsonPreview

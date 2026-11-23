@@ -75,10 +75,22 @@ describe('validateConfigPayload', () => {
       expect(() => validateConfigPayload('network_map', documentedNetworkMapPayload)).not.toThrow();
     });
 
-    it('accepts a network map without the optional active/name fields', () => {
+    it('accepts a network map without the optional active field', () => {
       expect(() =>
-        validateConfigPayload('network_map', { cfg: '1.0.0', messages: [] }),
+        validateConfigPayload('network_map', { cfg: '1.0.0', name: 'Map', messages: [] }),
       ).not.toThrow();
+    });
+
+    it('rejects a network map with a blank name', () => {
+      expect(() =>
+        validateConfigPayload('network_map', { cfg: '1.0.0', name: '', messages: [] }),
+      ).toThrow(BadRequestException);
+    });
+
+    it('rejects a network map with an oversized name', () => {
+      expect(() =>
+        validateConfigPayload('network_map', { cfg: '1.0.0', name: 'x'.repeat(251), messages: [] }),
+      ).toThrow(BadRequestException);
     });
 
     it('accepts a payload without tenantId', () => {
