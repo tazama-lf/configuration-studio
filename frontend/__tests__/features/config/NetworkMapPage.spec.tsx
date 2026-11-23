@@ -94,7 +94,13 @@ describe("NetworkMapPage", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockUser = { id: "1", username: "test", tenantId: "default" };
-    mockList.mockResolvedValue({ data: testData, meta: { total: 2, limit: 20, offset: 0 } });
+    // Filter-aware: the active-map pre-check calls list with filters[active]=true
+    // and must receive only the active records, like the real backend does.
+    mockList.mockImplementation((_table, params) => {
+      const filtered = params.filters?.active === "true";
+      const data = filtered ? testData.filter((r) => r.active) : testData;
+      return Promise.resolve({ data, meta: { total: data.length, limit: 20, offset: 0 } });
+    });
     mockCreate.mockResolvedValue({});
     mockUpdate.mockResolvedValue({});
     mockDelete.mockResolvedValue({});
@@ -196,6 +202,7 @@ describe("NetworkMapPage", () => {
     renderPage();
     fireEvent.click(screen.getByText("Create New"));
     await waitFor(() => expect(screen.getByText("Create")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Test Map" } });
     fireEvent.click(screen.getByText("Create"));
     await waitFor(() => expect(mockCreate).toHaveBeenCalled());
     await waitFor(() => expect(mockShowSuccess).toHaveBeenCalled());
@@ -216,9 +223,47 @@ describe("NetworkMapPage", () => {
     renderPage();
     fireEvent.click(screen.getByText("Create New"));
     await waitFor(() => expect(screen.getByText("Create")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Test Map" } });
     fireEvent.click(screen.getByText("Create"));
     await waitFor(() => expect(mockCreate).toHaveBeenCalled());
     expect(mockCreate).toHaveBeenCalledWith("network_map", expect.objectContaining({ active: false }));
+  });
+
+  it("includes the name field in the create payload", async () => {
+    renderPage();
+    fireEvent.click(screen.getByText("Create New"));
+    await waitFor(() => expect(screen.getByText("Create")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Test Map" } });
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Public Network Map" } });
+    fireEvent.click(screen.getByText("Create"));
+    await waitFor(() => expect(mockCreate).toHaveBeenCalled());
+    expect(mockCreate).toHaveBeenCalledWith(
+      "network_map",
+      expect.objectContaining({ name: "Public Network Map" }),
+    );
+  });
+
+  it("carries the stored name into the edit form and update payload", async () => {
+    mockList.mockImplementation((_table, params) => {
+      const filtered = params.filters?.active === "true";
+      const data = filtered
+        ? testData.filter((r) => r.active)
+        : [{ ...testData[1], name: "Stored Name" }];
+      return Promise.resolve({ data, meta: { total: data.length, limit: 20, offset: 0 } });
+    });
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId("row-0")).toBeInTheDocument());
+    clickAction("Edit");
+    await waitFor(() => expect(screen.getByText("Save")).toBeInTheDocument());
+    expect(screen.getByLabelText("Name")).toHaveValue("Stored Name");
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(() => expect(mockUpdate).toHaveBeenCalled());
+    expect(mockUpdate).toHaveBeenCalledWith(
+      "network_map",
+      "",
+      "2.0.0",
+      expect.objectContaining({ name: "Stored Name" }),
+    );
   });
 
   it("blocks saving an active map when the tenant already has one", async () => {
@@ -229,6 +274,7 @@ describe("NetworkMapPage", () => {
     await waitFor(() => expect(screen.getByTestId("row-0")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Create New"));
     await waitFor(() => expect(screen.getByText("Create")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Test Map" } });
     fireEvent.change(screen.getByLabelText("Config Version"), { target: { value: "9.9.9" } });
     // Turn the Active switch on
     const switchEl = screen.getByTestId("mui-switch");
@@ -256,6 +302,7 @@ describe("NetworkMapPage", () => {
     await waitFor(() => expect(screen.getByTestId("row-0")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Create New"));
     await waitFor(() => expect(screen.getByText("Create")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Test Map" } });
     const switchEl = screen.getByTestId("mui-switch");
     const propKeys = Object.keys(switchEl).filter((k) => k.startsWith("__reactProps"));
     const props = (switchEl as any)[propKeys[0]];
@@ -272,6 +319,7 @@ describe("NetworkMapPage", () => {
     renderPage();
     fireEvent.click(screen.getByText("Create New"));
     await waitFor(() => expect(screen.getByText("Create")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Test Map" } });
     fireEvent.click(screen.getByText("Create"));
     await waitFor(() => expect(mockShowError).toHaveBeenCalled());
   });
@@ -281,6 +329,7 @@ describe("NetworkMapPage", () => {
     renderPage();
     fireEvent.click(screen.getByText("Create New"));
     await waitFor(() => expect(screen.getByText("Create")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Test Map" } });
     fireEvent.click(screen.getByText("Create"));
     await waitFor(() => expect(mockShowError).toHaveBeenCalled());
   });
@@ -289,6 +338,7 @@ describe("NetworkMapPage", () => {
     renderPage();
     fireEvent.click(screen.getByText("Create New"));
     await waitFor(() => expect(screen.getByText("Create")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Test Map" } });
     fireEvent.change(screen.getByLabelText("Config Version"), { target: { value: "" } });
     fireEvent.click(screen.getByText("Create"));
     await waitFor(() => expect(mockShowError).toHaveBeenCalledWith("Validation error", "Config Version is required"));
@@ -333,6 +383,7 @@ describe("NetworkMapPage", () => {
     await waitFor(() => expect(screen.getByTestId("row-0")).toBeInTheDocument());
     clickAction("Edit");
     await waitFor(() => expect(screen.getByText("Save")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Test Map" } });
     fireEvent.click(screen.getByText("Save"));
     await waitFor(() => expect(mockUpdate).toHaveBeenCalled());
   });
@@ -343,6 +394,7 @@ describe("NetworkMapPage", () => {
     await waitFor(() => expect(screen.getByTestId("row-0")).toBeInTheDocument());
     clickAction("Edit");
     await waitFor(() => expect(screen.getByText("Save")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Test Map" } });
     fireEvent.click(screen.getByText("Save"));
     await waitFor(() => expect(mockShowError).toHaveBeenCalled());
   });
@@ -353,6 +405,7 @@ describe("NetworkMapPage", () => {
     await waitFor(() => expect(screen.getByTestId("row-0")).toBeInTheDocument());
     clickAction("Edit");
     await waitFor(() => expect(screen.getByText("Save")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Test Map" } });
     fireEvent.click(screen.getByText("Save"));
     await waitFor(() => expect(mockShowError).toHaveBeenCalled());
   });
@@ -448,6 +501,101 @@ describe("NetworkMapPage", () => {
     await waitFor(() => expect(mockShowError).toHaveBeenCalled());
   });
 
+  it("blocks an active save when the already-active map is on another page", async () => {
+    // Review follow-up: the same cross-page guarantee must hold for the
+    // save path, not just the row-level Activate action.
+    mockList.mockImplementation((_table, params) => {
+      const filtered = params.filters?.active === "true";
+      const data = filtered
+        ? [{ cfg: "1.0.0", active: true, messages: "[]", tenantId: "default" }]
+        : [{ cfg: "2.0.0", active: false, messages: "[]", tenantId: "default" }];
+      return Promise.resolve({ data, meta: { total: data.length, limit: 20, offset: 0 } });
+    });
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId("row-0")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Create New"));
+    await waitFor(() => expect(screen.getByText("Create")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "New Map" } });
+    fireEvent.change(screen.getByLabelText("Config Version"), { target: { value: "9.9.9" } });
+    const switchEl = screen.getByTestId("mui-switch");
+    const propKeys = Object.keys(switchEl).filter((k) => k.startsWith("__reactProps"));
+    const props = (switchEl as any)[propKeys[0]];
+    act(() => {
+      props.onChange({ target: { checked: true } });
+    });
+    fireEvent.click(screen.getByText("Create"));
+    await waitFor(() =>
+      expect(mockShowError).toHaveBeenCalledWith(
+        "Validation error",
+        "Network map 1.0.0 is already active. Deactivate it first.",
+      ),
+    );
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it("lets the save proceed when the active-map lookup fails", async () => {
+    // Review follow-up: findActiveMap swallows lookup failures - the save
+    // continues so the create call surfaces the real error itself.
+    mockList.mockImplementation((_table, params) => {
+      if (params.filters?.active === "true") {
+        return Promise.reject(new Error("lookup failed"));
+      }
+      return Promise.resolve({
+        data: [{ cfg: "2.0.0", active: false, messages: "[]", tenantId: "default" }],
+        meta: { total: 1, limit: 20, offset: 0 },
+      });
+    });
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId("row-0")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Create New"));
+    await waitFor(() => expect(screen.getByText("Create")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "New Map" } });
+    fireEvent.change(screen.getByLabelText("Config Version"), { target: { value: "9.9.9" } });
+    const switchEl = screen.getByTestId("mui-switch");
+    const propKeys = Object.keys(switchEl).filter((k) => k.startsWith("__reactProps"));
+    const props = (switchEl as any)[propKeys[0]];
+    act(() => {
+      props.onChange({ target: { checked: true } });
+    });
+    fireEvent.click(screen.getByText("Create"));
+    await waitFor(() => expect(mockCreate).toHaveBeenCalled());
+  });
+
+  it("requires a non-empty name on save", async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId("row-0")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Create New"));
+    await waitFor(() => expect(screen.getByText("Create")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Create"));
+    await waitFor(() =>
+      expect(mockShowError).toHaveBeenCalledWith("Validation error", "Name is required"),
+    );
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it("shows the friendly error when the already-active map is on another page", async () => {
+    // Issue #37: the visible page holds only the inactive 2.0.0 row; the
+    // active 1.0.0 map lives on another page, so the old current-page check
+    // missed it and activation surfaced a raw DB constraint error.
+    mockList.mockImplementation((_table, params) => {
+      const filtered = params.filters?.active === "true";
+      const data = filtered
+        ? [{ cfg: "1.0.0", active: true, messages: "[]", tenantId: "default" }]
+        : [{ cfg: "2.0.0", active: false, messages: "[]", tenantId: "default" }];
+      return Promise.resolve({ data, meta: { total: data.length, limit: 20, offset: 0 } });
+    });
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId("row-0")).toBeInTheDocument());
+    clickAction("Activate");
+    await waitFor(() =>
+      expect(mockShowError).toHaveBeenCalledWith(
+        "Failed to activate network map",
+        "Network map 1.0.0 is already active. Deactivate it first.",
+      ),
+    );
+    expect(mockActivate).not.toHaveBeenCalled();
+  });
+
   it("shows error when activate fails", async () => {
     mockList.mockResolvedValue({
       data: [{ cfg: "2.0.0", active: false, messages: "[]", tenantId: "default" }],
@@ -476,6 +624,7 @@ describe("NetworkMapPage", () => {
     renderPage();
     fireEvent.click(screen.getByText("Create New"));
     await waitFor(() => expect(screen.getByText("Create")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Test Map" } });
     // The Config Version field strips non-digit/dot chars, so typing invalid chars
     // results in empty string, triggering "Config Version is required"
     fireEvent.change(screen.getByLabelText("Config Version"), { target: { value: "" } });
@@ -487,6 +636,7 @@ describe("NetworkMapPage", () => {
     renderPage();
     fireEvent.click(screen.getByText("Create New"));
     await waitFor(() => expect(screen.getByText("Create")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Test Map" } });
     // The messages field is managed by NetworkMapConfigEditor which always produces valid JSON.
     // We need to test the handleSave validation directly. Since the editor's onChange
     // sets formData.messages, we can't easily inject invalid JSON through the UI.
@@ -590,6 +740,7 @@ describe("NetworkMapPage", () => {
     renderPage();
     fireEvent.click(screen.getByText("Create New"));
     await waitFor(() => expect(screen.getByText("Create")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Test Map" } });
     // Type "1." which passes the strip but fails isValidConfigVersion
     fireEvent.change(screen.getByLabelText("Config Version"), { target: { value: "1." } });
     // The Create button may be disabled, so find it and call onClick directly
@@ -613,6 +764,7 @@ describe("NetworkMapPage", () => {
     renderPage();
     fireEvent.click(screen.getByText("Create New"));
     await waitFor(() => expect(screen.getByText("Create")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Test Map" } });
     // The messages field is managed by NetworkMapConfigEditor mock.
     // We need to inject invalid JSON into the formData.messages.
     // Find the NetworkMapConfigEditor mock and call its onChange with invalid JSON
@@ -794,6 +946,7 @@ describe("NetworkMapPage", () => {
     renderPage();
     fireEvent.click(screen.getByText("Create New"));
     await waitFor(() => expect(screen.getByText("Create")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Test Map" } });
     // Type "1." which passes the strip but fails isValidConfigVersion
     fireEvent.change(screen.getByLabelText("Config Version"), { target: { value: "1." } });
     // The Create button may be disabled, so call onClick directly
@@ -858,6 +1011,7 @@ describe("NetworkMapPage", () => {
     renderPage();
     fireEvent.click(screen.getByText("Create New"));
     await waitFor(() => expect(screen.getByText("Create")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Test Map" } });
     fireEvent.click(screen.getByText("Create"));
     // With valid JSON array, create should succeed
     await waitFor(() => expect(mockCreate).toHaveBeenCalled());
@@ -867,6 +1021,7 @@ describe("NetworkMapPage", () => {
     renderPage();
     fireEvent.click(screen.getByText("Create New"));
     await waitFor(() => expect(screen.getByText("Create")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Test Map" } });
     // The real editor always produces valid JSON arrays, so this path
     // is covered by the create test above.
     expect(screen.getByText("Create")).toBeInTheDocument();
@@ -877,6 +1032,7 @@ describe("NetworkMapPage", () => {
     renderPage();
     fireEvent.click(screen.getByText("Create New"));
     await waitFor(() => expect(screen.getByText("Create")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Test Map" } });
     fireEvent.click(screen.getByText("Create"));
     await waitFor(() => expect(mockCreate).toHaveBeenCalled());
   });
@@ -896,6 +1052,7 @@ describe("NetworkMapPage", () => {
     await waitFor(() => expect(screen.getByTestId("row-0")).toBeInTheDocument());
     clickAction("Edit");
     await waitFor(() => expect(screen.getByText("Edit Network Map")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Test Map" } });
     fireEvent.click(screen.getByText("Save"));
     await waitFor(() => expect(mockUpdate).toHaveBeenCalled());
   });
@@ -926,6 +1083,7 @@ describe("NetworkMapPage", () => {
     await waitFor(() => expect(screen.getByTestId("row-0")).toBeInTheDocument());
     clickAction("Edit");
     await waitFor(() => expect(screen.getByText("Edit Network Map")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Test Map" } });
     fireEvent.click(screen.getByText("Save"));
     await waitFor(() => expect(mockUpdate).toHaveBeenCalled());
   });
