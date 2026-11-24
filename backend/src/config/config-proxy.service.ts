@@ -237,9 +237,20 @@ export class ConfigProxyService {
       const existing = await this.getById(table, id, cfg, token, tenantId);
       return this.isPlainRecord(existing) ? existing : undefined;
     } catch (error) {
-      // A 404 is a confirmed-absent record, not a failure.
-      if (error instanceof HttpException && error.getStatus() === HttpStatus.NOT_FOUND) {
-        return undefined;
+      // AdminServiceClient throws HttpException. A 404 is a confirmed-absent
+      // record (create-style upsert) - proceed without preservation. Any other
+      // deliberate 4xx (401 expired session, 403 permission, 400 bad request)
+      // is the client's real problem and must surface as-is - masking it as a
+      // 503 "please retry" would hide an unrecoverable error. Only 5xx /
+      // connection failures are transient and return null (-> 503).
+      if (error instanceof HttpException) {
+        const status = error.getStatus();
+        if (status === HttpStatus.NOT_FOUND) {
+          return undefined;
+        }
+        if (status < HttpStatus.INTERNAL_SERVER_ERROR) {
+          throw error;
+        }
       }
       this.logger.warn(
         `Could not read existing ${table} ${id}/${cfg} to preserve creDtTm: ${(error as Error).message}`,

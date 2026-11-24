@@ -122,8 +122,8 @@ cfg, active, messages, tenantId
 
 **Network map verdict: additive diffs only.**
 1. ~~**Missing `name`**~~ — **resolved by removal**: `name` is not a field of the Tazama `NetworkMap` schema (not in admin-service dev/main nor frms-coe-lib), and admin-service strips it on write, so the Studio no longer emits or accepts it
-2. `updDtTm` written (DB never has it here) — fixed in config-studio (no longer injected for network_map)
-3. Per-typology `tenantId` written (DB never has it there) — parked with the TMS owners
+2. `updDtTm` — the Studio no longer injects it on **update** for network_map/typology (only `rule` gets it on update; `create` still stamps it for every table so the payload has it). Note admin-service's own repositories also stamp `updDtTm` for network_map/typology, so the stored record carries it regardless — this change only stops the Studio sending a redundant copy.
+3. Per-typology `tenantId` written (DB never has it there) — fixed in config-studio (no longer emitted)
 
 ---
 

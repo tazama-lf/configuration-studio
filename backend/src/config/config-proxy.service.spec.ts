@@ -288,6 +288,27 @@ describe('ConfigProxyService', () => {
       expect(sentBody()).not.toHaveProperty('creDtTm');
     });
 
+    it('does not inject updDtTm on network_map update (admin-service stamps it)', async () => {
+      mockAdminServiceClient.executeHttpRequest.mockImplementation((method: string) =>
+        method === 'GET' ? Promise.resolve({ cfg: '2.0.0', creDtTm: 'stored' }) : Promise.resolve({}),
+      );
+
+      await service.update('network_map', 'ignored-id', '2.0.0', { messages: [] }, 'token', 'tenant-1');
+
+      expect(sentBody()).not.toHaveProperty('updDtTm');
+      expect(sentBody().creDtTm).toBe('stored');
+    });
+
+    it('does not inject updDtTm on typology update', async () => {
+      mockAdminServiceClient.executeHttpRequest.mockImplementation((method: string) =>
+        method === 'GET' ? Promise.resolve({ id: 't1', creDtTm: 'stored' }) : Promise.resolve({}),
+      );
+
+      await service.update('typology', 't1', '1.0.0', { rules: [], expression: [], workflow: {} }, 'token', 'tenant-1');
+
+      expect(sentBody()).not.toHaveProperty('updDtTm');
+    });
+
     it('should use single-key path for network_map update (no id segment)', async () => {
       mockAdminServiceClient.executeHttpRequest.mockResolvedValue({});
 
@@ -401,6 +422,21 @@ describe('ConfigProxyService', () => {
 
       const result = await service.update('network_map', 'ignored-id', '2.0.0', { messages: [] }, 'token', 'tenant-1');
       expect(result).toEqual({ updated: true });
+    });
+
+    it('rethrows a deliberate 4xx preservation-read failure as-is (not a 503)', async () => {
+      // An expired session (401) or permission error (403) must surface as
+      // itself, not be masked as a 503 "please retry" that can never succeed.
+      const forbidden = new HttpException({ message: 'forbidden', statusCode: 403 }, 403);
+      mockAdminServiceClient.executeHttpRequest.mockImplementation((method: string) =>
+        method === 'GET' ? Promise.reject(forbidden) : Promise.resolve({ updated: true }),
+      );
+
+      await expect(
+        service.update('network_map', 'ignored-id', '2.0.0', { messages: [] }, 'token', 'tenant-1'),
+      ).rejects.toBe(forbidden);
+      const methods = mockAdminServiceClient.executeHttpRequest.mock.calls.map((c) => c[0]);
+      expect(methods).toEqual(['GET']);
     });
 
     it('should not add creDtTm when the stored record has none', async () => {
