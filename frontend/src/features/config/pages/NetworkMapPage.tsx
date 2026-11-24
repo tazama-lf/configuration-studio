@@ -32,11 +32,10 @@ import { configApi, type PaginatedResponse } from "../services/configApi";
 import NetworkMapConfigEditor from "../components/NetworkMapConfigEditor";
 import JsonPreviewPanel from "../components/JsonPreviewPanel";
 import { isValidConfigVersion } from "../../../utils/validation";
-import { MAX_CONFIG_VERSION_LENGTH, MAX_DESCRIPTION_LENGTH } from "../../../utils/constants";
+import { MAX_CONFIG_VERSION_LENGTH } from "../../../utils/constants";
 
 interface NetworkMapRecord {
   cfg: string;
-  name?: string;
   active: boolean;
   messages: string;
   tenantId: string;
@@ -74,7 +73,6 @@ const NetworkMapPage: React.FC = () => {
   // Form fields
   const [formData, setFormData] = useState({
     cfg: "1.0.0",
-    name: "",
     active: true,
     messages: "[]",
     tenantId: "default",
@@ -109,7 +107,7 @@ const NetworkMapPage: React.FC = () => {
     // creating with active=true fails with a raw DB constraint error whenever
     // the tenant already has an active map. Maps are normally created
     // inactive and activated explicitly afterwards.
-    setFormData({ cfg: "1.0.0", name: "", active: false, messages: "[]", tenantId });
+    setFormData({ cfg: "1.0.0", active: false, messages: "[]", tenantId });
     setDialogOpen(true);
   };
 
@@ -118,7 +116,6 @@ const NetworkMapPage: React.FC = () => {
     setSelectedRecord(record);
     setFormData({
       cfg: record.cfg,
-      name: record.name ?? "",
       active: record.active,
       messages: typeof record.messages === "string" ? record.messages : JSON.stringify(record.messages ?? [], null, 2),
       tenantId: record.tenantId ?? tenantId,
@@ -131,7 +128,6 @@ const NetworkMapPage: React.FC = () => {
     setSelectedRecord(record);
     setFormData({
       cfg: record.cfg,
-      name: record.name ?? "",
       active: record.active,
       messages: typeof record.messages === "string" ? record.messages : JSON.stringify(record.messages ?? [], null, 2),
       tenantId: record.tenantId ?? tenantId,
@@ -222,10 +218,6 @@ const NetworkMapPage: React.FC = () => {
       showError("Validation error", "Config Version is required");
       return;
     }
-    if (!formData.name.trim()) {
-      showError("Validation error", "Name is required");
-      return;
-    }
     if (!isValidConfigVersion(formData.cfg)) {
       showError("Validation error", "Config Version must contain only digits and dots (e.g. 1.0.0)");
       return;
@@ -257,10 +249,8 @@ const NetworkMapPage: React.FC = () => {
           return;
         }
       }
-      // The form requires a name, so it is always present here.
-      const payload: Record<string, unknown> = {
+      const payload = {
         cfg: formData.cfg,
-        name: formData.name.trim(),
         active: formData.active,
         messages: parsedMessages,
         tenantId,
@@ -301,7 +291,6 @@ const NetworkMapPage: React.FC = () => {
 
   const columns: GridColDef[] = [
     { field: "cfg", headerName: "Config Version", width: 130 },
-    { field: "name", headerName: "Name", flex: 1, minWidth: 120, sortable: false },
     {
       field: "active",
       headerName: "Active",
@@ -464,16 +453,6 @@ const NetworkMapPage: React.FC = () => {
                       : undefined
                 }
               />
-              <TextField
-                label="Name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                disabled={isReadOnly}
-                required
-                fullWidth
-                slotProps={{ htmlInput: { maxLength: MAX_DESCRIPTION_LENGTH } }}
-                helperText="Display name of the network map"
-              />
               <FormControlLabel
                 control={
                   <Switch
@@ -491,7 +470,6 @@ const NetworkMapPage: React.FC = () => {
                 onChange={(json) => setFormData({ ...formData, messages: json })}
                 readOnly={isReadOnly}
                 cfg={formData.cfg}
-                name={formData.name}
                 active={formData.active}
                 tenantId={tenantId}
                 hideJsonPreview

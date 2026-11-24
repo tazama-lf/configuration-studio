@@ -1,4 +1,4 @@
-import { Injectable, Logger, ServiceUnavailableException, HttpException, HttpStatus } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { AdminServiceClient } from '../services/admin-service-client.service';
 
 export type ConfigTable = 'network_map' | 'rule' | 'typology';
@@ -188,13 +188,8 @@ export class ConfigProxyService {
    * not carry creDtTm forward, which used to silently wipe the creation
    * timestamp on every edit. `creDtTm` is merged back from the stored record
    * whenever it is omitted; if that read fails we proceed without it rather
-   * than blocking every rule/typology edit (the field is recoverable, not
-   * identity-bearing, and admin-service stamps its own timestamps).
-   *
-   * `name` is different: it is a required identity field on network maps, so
-   * a network-map update that omits it cannot proceed if the preservation read
-   * fails — a full-replace PUT would erase the stored name. In that case we
-   * reject the update with a retryable 503 rather than silently lose data.
+   * than blocking every rule/typology edit (the field is recoverable, and
+   * admin-service stamps its own timestamps).
    */
   private async preserveOmittedFields(
     table: ConfigTable,
@@ -207,42 +202,21 @@ export class ConfigProxyService {
     if (!this.isPlainRecord(body)) {
       return;
     }
-    const preserveCreDtTm = body.creDtTm === undefined;
-    const preserveName = table === 'network_map' && body.name === undefined;
-    if (!preserveCreDtTm && !preserveName) {
+    if (body.creDtTm !== undefined) {
       return;
     }
 
     const existing = await this.fetchExistingRecord(table, id, cfg, token, tenantId);
-    if (existing === null) {
-      // The preservation read failed (transient admin-service error).
-      if (preserveName) {
-        // Losing a network map's name is unacceptable - reject and retry.
-        throw new ServiceUnavailableException(
-          'Could not read the stored network map to preserve its name. Please retry.',
-        );
-      }
-      // Otherwise carry on without creDtTm (see docstring).
-      return;
-    }
-    if (!existing) {
-      return;
-    }
-    if (preserveCreDtTm && existing.creDtTm !== undefined) {
+    if (existing && existing.creDtTm !== undefined) {
       body.creDtTm = existing.creDtTm;
-    }
-    if (preserveName && existing.name !== undefined) {
-      body.name = existing.name;
     }
   }
 
   /**
    * Read the stored record so update() can preserve fields the caller omitted.
-   * A failed read is distinguished from a confirmed-absent record: the
-   * returned marker tells update() whether the stored record is known to not
-   * exist (safe to proceed without preservation) or whether the read failed
-   * (the update must be rejected — proceeding would send a full-replace PUT
-   * that wipes the fields this mechanism exists to preserve).
+   * A failed read is non-fatal: creDtTm is recoverable and admin-service stamps
+   * its own timestamps, so we simply carry on without it (never block a write
+   * over a stale-read failure).
    */
   private async fetchExistingRecord(
     table: ConfigTable,
@@ -250,32 +224,15 @@ export class ConfigProxyService {
     cfg: string,
     token: string,
     tenantId?: string,
-  ): Promise<Record<string, unknown> | undefined | null> {
+  ): Promise<Record<string, unknown> | undefined> {
     try {
       const existing = await this.getById(table, id, cfg, token, tenantId);
       return this.isPlainRecord(existing) ? existing : undefined;
     } catch (error) {
-      // A 404 from admin-service is a confirmed absent record: the update
-      // may proceed without preservation (create-style upsert). Any other
-      // deliberate 4xx (400/401/403/...) is the client's real problem and must
-      // surface as-is - turning a 403 into a 503 "please retry" would hide
-      // the actual cause. Only 5xx / connection failures are transient.
-      // AdminServiceClient throws HttpException, so the status comes from
-      // getStatus() — the body's statusCode key is not the HTTP status.
-      if (error instanceof HttpException) {
-        const status = error.getStatus();
-        if (status === HttpStatus.NOT_FOUND) {
-          return undefined;
-        }
-        if (status < HttpStatus.INTERNAL_SERVER_ERROR) {
-          throw error;
-        }
-      }
       this.logger.warn(
-        `Could not read existing ${table} ${id}/${cfg} to preserve omitted fields: ${(error as Error).message}`,
+        `Could not read existing ${table} ${id}/${cfg} to preserve crDtTm: ${(error as Error).message}`,
       );
-      // null = the read failed (transient 5xx / network); undefined = confirmed absent.
-      return null;
+      return undefined;
     }
   }
 

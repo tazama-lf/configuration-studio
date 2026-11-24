@@ -348,49 +348,26 @@ describe('ConfigProxyService', () => {
       expect(sentBody().creDtTm).toBe('stored-creation-time');
     });
 
-    it('should preserve name from the stored record when a network map update omits it', async () => {
+    it('should preserve creDtTm from the stored record when a network map update omits it', async () => {
       mockAdminServiceClient.executeHttpRequest.mockImplementation((method: string) =>
         method === 'GET'
-          ? Promise.resolve({ cfg: '2.0.0', name: 'stored-name', creDtTm: 'stored-creation-time' })
+          ? Promise.resolve({ cfg: '2.0.0', creDtTm: 'stored-creation-time' })
           : Promise.resolve({}),
       );
 
       await service.update('network_map', 'ignored-id', '2.0.0', { messages: [] }, 'token', 'tenant-1');
 
-      expect(sentBody().name).toBe('stored-name');
       expect(sentBody().creDtTm).toBe('stored-creation-time');
     });
 
-    it('should keep the caller-supplied name on a network map update', async () => {
-      mockAdminServiceClient.executeHttpRequest.mockImplementation((method: string) =>
-        method === 'GET'
-          ? Promise.resolve({ cfg: '2.0.0', name: 'stored-name', creDtTm: '2020-01-01T00:00:00.000Z' })
-          : Promise.resolve({}),
-      );
-
-      await service.update('network_map', 'ignored-id', '2.0.0', { name: 'new-name' }, 'token', 'tenant-1');
-
-      expect(sentBody().name).toBe('new-name');
-    });
-
-    it('should not add name when the stored network map has none', async () => {
-      mockAdminServiceClient.executeHttpRequest.mockImplementation((method: string) =>
-        method === 'GET' ? Promise.resolve({ cfg: '2.0.0' }) : Promise.resolve({}),
-      );
-
-      await service.update('network_map', 'ignored-id', '2.0.0', { messages: [] }, 'token', 'tenant-1');
-
-      expect(sentBody()).not.toHaveProperty('name');
-    });
-
-    it('should not read the stored record when a network map update supplies both name and creDtTm', async () => {
+    it('should not read the stored record when a network map update supplies creDtTm', async () => {
       mockAdminServiceClient.executeHttpRequest.mockResolvedValue({});
 
       await service.update(
         'network_map',
         'ignored-id',
         '2.0.0',
-        { name: 'nm', creDtTm: '2020-01-01T00:00:00.000Z' },
+        { creDtTm: '2020-01-01T00:00:00.000Z' },
         'token',
         'tenant-1',
       );
@@ -399,20 +376,17 @@ describe('ConfigProxyService', () => {
       expect(methods).toEqual(['PUT']);
     });
 
-    it('should reject the update when the preservation read fails, instead of wiping the protected fields', async () => {
-      // Review follow-up: a transient GET failure must not let the
-      // full-replace PUT through — that would delete the stored name.
+    it('should still update when the preservation read fails (creDtTm is recoverable)', async () => {
+      // A transient GET failure must not block the write - admin-service
+      // stamps its own timestamps and creDtTm is recoverable.
       mockAdminServiceClient.executeHttpRequest.mockImplementation((method: string) =>
         method === 'GET' ? Promise.reject(new Error('transient')) : Promise.resolve({ updated: true }),
       );
 
-      await expect(
-        service.update('network_map', 'ignored-id', '2.0.0', { messages: [] }, 'token', 'tenant-1'),
-      ).rejects.toThrow(ServiceUnavailableException);
-
-      // No PUT may be sent.
+      const result = await service.update('network_map', 'ignored-id', '2.0.0', { messages: [] }, 'token', 'tenant-1');
+      expect(result).toEqual({ updated: true });
       const methods = mockAdminServiceClient.executeHttpRequest.mock.calls.map((c) => c[0]);
-      expect(methods).toEqual(['GET']);
+      expect(methods).toEqual(['GET', 'PUT']);
     });
 
     it('should still update when the record is confirmed absent (create-style upsert)', async () => {
@@ -450,19 +424,6 @@ describe('ConfigProxyService', () => {
       expect(sentBody()).not.toHaveProperty('creDtTm');
     });
 
-    it('rejects a network-map update with 503 when the preservation read fails (name would be lost)', async () => {
-      // Losing a network map's name is unacceptable, so a failed read blocks
-      // the update instead of letting a full-replace PUT wipe it.
-      mockAdminServiceClient.executeHttpRequest.mockImplementation((method: string) =>
-        method === 'GET' ? Promise.reject(new Error('connection reset')) : Promise.resolve({ ok: true }),
-      );
-
-      await expect(
-        service.update('network_map', 'ignored-id', '2.0.0', { messages: [] }, 'token'),
-      ).rejects.toThrow(ServiceUnavailableException);
-      expect(putCall()).toBeUndefined();
-    });
-
     it('proceeds with a rule update when the preservation read fails (creDtTm is recoverable)', async () => {
       // Rule/typology edits must not be blocked by a transient read failure;
       // admin-service stamps its own timestamps, so carrying on is safe.
@@ -472,20 +433,6 @@ describe('ConfigProxyService', () => {
 
       const result = await service.update('rule', 'rule-1', '1.0.0', { name: 'updated' }, 'token');
       expect(result).toEqual({ ok: true });
-    });
-
-    it('rethrows a 4xx preservation-read failure as-is instead of a 503', async () => {
-      const forbidden = new HttpException({ message: 'forbidden', statusCode: 403 }, 403);
-      mockAdminServiceClient.executeHttpRequest.mockImplementation((method: string) =>
-        method === 'GET' ? Promise.reject(forbidden) : Promise.resolve({ ok: true }),
-      );
-
-      // Assert the *same* exception instance is rethrown — toThrow(HttpException)
-      // would also accept a ServiceUnavailableException (503), which is exactly
-      // the incorrect behaviour this test must reject.
-      await expect(
-        service.update('network_map', 'ignored-id', '2.0.0', { messages: [] }, 'token'),
-      ).rejects.toBe(forbidden);
     });
 
     it('should not read the stored record for a non-object body', async () => {

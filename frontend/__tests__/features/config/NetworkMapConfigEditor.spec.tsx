@@ -355,23 +355,7 @@ describe("NetworkMapConfigEditor", () => {
     expect(lastCall).toContain('"tenantId": "tenantB"');
   });
 
-  // ── #37 follow-ups: name in preview, no per-typology tenantId ─────────────
-
-  it("includes name in the preview JSON when provided", () => {
-    const onPreviewChange = jest.fn();
-    render(
-      <NetworkMapConfigEditor
-        {...defaultProps}
-        onPreviewChange={onPreviewChange}
-        cfg="1.0.0"
-        name="Public Network Map"
-        active={true}
-        tenantId="tenantA"
-      />,
-    );
-    const lastCall = onPreviewChange.mock.calls[onPreviewChange.mock.calls.length - 1][0];
-    expect(lastCall).toContain('"name": "Public Network Map"');
-  });
+  // ── #37 follow-ups: no per-typology tenantId ──────────────────────────────
 
   it("does not add a per-typology tenantId when adding a typology", () => {
     // The DB network-map record has no tenantId inside typologies; adding one
