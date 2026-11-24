@@ -475,15 +475,17 @@ describe('ConfigProxyService', () => {
     });
 
     it('rethrows a 4xx preservation-read failure as-is instead of a 503', async () => {
+      const forbidden = new HttpException({ message: 'forbidden', statusCode: 403 }, 403);
       mockAdminServiceClient.executeHttpRequest.mockImplementation((method: string) =>
-        method === 'GET'
-          ? Promise.reject(new HttpException({ message: 'forbidden', statusCode: 403 }, 403))
-          : Promise.resolve({ ok: true }),
+        method === 'GET' ? Promise.reject(forbidden) : Promise.resolve({ ok: true }),
       );
 
+      // Assert the *same* exception instance is rethrown — toThrow(HttpException)
+      // would also accept a ServiceUnavailableException (503), which is exactly
+      // the incorrect behaviour this test must reject.
       await expect(
         service.update('network_map', 'ignored-id', '2.0.0', { messages: [] }, 'token'),
-      ).rejects.toThrow(HttpException);
+      ).rejects.toBe(forbidden);
     });
 
     it('should not read the stored record for a non-object body', async () => {

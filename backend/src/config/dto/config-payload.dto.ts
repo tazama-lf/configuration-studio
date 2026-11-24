@@ -1,4 +1,5 @@
 import { IsArray, IsBoolean, IsObject, IsOptional, IsString, IsNotEmpty, MaxLength } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 /**
  * Payload shapes accepted by the /config/* write endpoints.
@@ -66,9 +67,11 @@ export class NetworkMapPayloadDto extends BaseConfigPayloadDto {
 
     /**
      * Required and non-blank on write (docs/report.md lists `name` as a
-     * required field; the UI enforces 250 chars). A blank string is rejected
-     * rather than treated as "omitted", so a direct API call cannot store "".
+     * required field; the UI enforces 250 chars). Trimmed first so a
+     * whitespace-only value (" ") is treated as blank and rejected, matching
+     * the UI, rather than slipping past @IsNotEmpty().
      */
+    @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
     @IsString()
     @IsNotEmpty()
     @MaxLength(250)

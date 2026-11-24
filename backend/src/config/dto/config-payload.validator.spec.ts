@@ -87,6 +87,12 @@ describe('validateConfigPayload', () => {
       ).toThrow(BadRequestException);
     });
 
+    it('rejects a network map with a whitespace-only name', () => {
+      expect(() =>
+        validateConfigPayload('network_map', { cfg: '1.0.0', name: '   ', messages: [] }),
+      ).toThrow(BadRequestException);
+    });
+
     it('rejects a network map with an oversized name', () => {
       expect(() =>
         validateConfigPayload('network_map', { cfg: '1.0.0', name: 'x'.repeat(251), messages: [] }),
