@@ -44,9 +44,10 @@ class EnvironmentVariables {
 
   // Digits-only: app.module.ts reads this with configService.get<number>(), a
   // type hint only, so a non-numeric value (e.g. "10s") would reach axios as
-  // NaN and silently disable the timeout.
+  // NaN and silently disable the timeout. no_symbols also rejects decimals
+  // like ".5", whose parseInt() result is NaN.
   @IsOptional()
-  @IsNumberString()
+  @IsNumberString({ no_symbols: true })
   HTTP_TIMEOUT_MS?: string;
 }
 

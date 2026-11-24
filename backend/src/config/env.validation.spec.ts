@@ -72,6 +72,12 @@ describe('env.validation', () => {
       );
     });
 
+    it('should reject a decimal HTTP_TIMEOUT_MS (parseInt would yield NaN)', () => {
+      expect(() => validate({ ...validEnv, HTTP_TIMEOUT_MS: '.5' })).toThrow(
+        /HTTP_TIMEOUT_MS/,
+      );
+    });
+
     it('should accept config with only required fields', () => {
       const result = validate({
         NODE_ENV: 'development',
