@@ -237,19 +237,22 @@ const NetworkMapPage: React.FC = () => {
       showError("Validation error", "Messages must be a JSON array (e.g. [] or [{ id: 'x', cfg: '1.0.0', ... }])");
       return;
     }
-    // Only one network map can be active per tenant (enforced by a unique DB
-    // index). Reject the save up front with a clear message instead of letting
-    // the raw constraint error through. The check queries the API so an active
-    // map on another page is still caught.
-    if (formData.active) {
-      const activeMap = await findActiveMap();
-      if (activeMap && activeMap.cfg !== formData.cfg) {
-        showError("Validation error", `Network map ${activeMap.cfg} is already active. Deactivate it first.`);
-        return;
-      }
-    }
+    // Busy state covers the active-map lookup so a double-click cannot start a
+    // second save while the check is in flight; otherwise the first save could
+    // send its older captured payload after the second one and win the race.
     setActionLoading(true);
     try {
+      // Only one network map can be active per tenant (enforced by a unique DB
+      // index). Reject the save up front with a clear message instead of letting
+      // the raw constraint error through. The check queries the API so an active
+      // map on another page is still caught.
+      if (formData.active) {
+        const activeMap = await findActiveMap();
+        if (activeMap && activeMap.cfg !== formData.cfg) {
+          showError("Validation error", `Network map ${activeMap.cfg} is already active. Deactivate it first.`);
+          return;
+        }
+      }
       const payload = {
         cfg: formData.cfg,
         name: formData.name,

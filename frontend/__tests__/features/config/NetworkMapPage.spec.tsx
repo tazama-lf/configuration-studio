@@ -309,6 +309,42 @@ describe("NetworkMapPage", () => {
     expect(mockCreate).toHaveBeenCalledWith("network_map", expect.objectContaining({ active: true }));
   });
 
+  it("disables submit while the active-map lookup is in flight", async () => {
+    // Regression: the busy state must be set before awaiting findActiveMap,
+    // otherwise a second click during the lookup can fire a competing
+    // full-replace PUT that wins with stale data.
+    let resolveActive!: (value: unknown) => void;
+    mockList.mockImplementation((_table, params) => {
+      if (params.filters?.active === "true") {
+        return new Promise((resolve) => {
+          resolveActive = resolve;
+        }) as ReturnType<typeof configApi.list>;
+      }
+      return Promise.resolve({
+        data: [{ cfg: "2.0.0", active: false, messages: "[]", tenantId: "default" }],
+        meta: { total: 1, limit: 20, offset: 0 },
+      });
+    });
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId("row-0")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Create New"));
+    await waitFor(() => expect(screen.getByText("Create")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("Config Version"), { target: { value: "9.9.9" } });
+    const switchEl = screen.getByTestId("mui-switch");
+    const propKeys = Object.keys(switchEl).filter((k) => k.startsWith("__reactProps"));
+    act(() => {
+      (switchEl as any)[propKeys[0]].onChange({ target: { checked: true } });
+    });
+
+    const createBtn = screen.getByText("Create").closest("button")!;
+    fireEvent.click(createBtn);
+    // While the lookup is still pending, the submit must already be disabled.
+    await waitFor(() => expect(createBtn).toBeDisabled());
+
+    resolveActive({ data: [], meta: { total: 0, limit: 20, offset: 0 } });
+    await waitFor(() => expect(mockCreate).toHaveBeenCalledTimes(1));
+  });
+
   it("shows error when create fails", async () => {
     mockCreate.mockRejectedValue(new Error("Create failed"));
     renderPage();

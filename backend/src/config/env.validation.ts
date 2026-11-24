@@ -1,6 +1,7 @@
 import { plainToClass } from 'class-transformer';
 import {
   IsEnum,
+  IsNumberString,
   IsString,
   IsOptional,
   validateSync,
@@ -41,8 +42,11 @@ class EnvironmentVariables {
   @IsString()
   CORS_ORIGINS?: string;
 
+  // Digits-only: app.module.ts reads this with configService.get<number>(), a
+  // type hint only, so a non-numeric value (e.g. "10s") would reach axios as
+  // NaN and silently disable the timeout.
   @IsOptional()
-  @IsString()
+  @IsNumberString()
   HTTP_TIMEOUT_MS?: string;
 }
 

@@ -61,6 +61,17 @@ describe('env.validation', () => {
       expect(result.PORT).toBe('4000');
     });
 
+    it('should accept a numeric HTTP_TIMEOUT_MS', () => {
+      const result = validate({ ...validEnv, HTTP_TIMEOUT_MS: '10000' });
+      expect(result.HTTP_TIMEOUT_MS).toBe('10000');
+    });
+
+    it('should reject a non-numeric HTTP_TIMEOUT_MS so startup fails fast', () => {
+      expect(() => validate({ ...validEnv, HTTP_TIMEOUT_MS: '10s' })).toThrow(
+        /HTTP_TIMEOUT_MS/,
+      );
+    });
+
     it('should accept config with only required fields', () => {
       const result = validate({
         NODE_ENV: 'development',
