@@ -144,15 +144,17 @@ DELETE /v1/admin/configuration/{table}/{id}/{cfg}
 
 ### Backend
 
-| Variable               | Description              | Default                 |
-| ---------------------- | ------------------------ | ----------------------- |
-| `PORT`                 | Backend port             | `3015`                  |
-| `NODE_ENV`             | Node environment         | `development`           |
-| `TAZAMA_AUTH_URL`      | Auth-service URL         | _(required)_            |
-| `ADMIN_SERVICE_URL`    | Admin-service URL        | `http://localhost:5100` |
-| `AUTH_PUBLIC_KEY_PATH` | Keycloak public key path | _(required)_            |
-| `CERT_PATH_PUBLIC`     | Public certificate path  | _(required)_            |
-| `FUNCTION_NAME`        | Function name            | _(required)_            |
+| Variable               | Description                        | Default                 |
+| ---------------------- | ---------------------------------- | ----------------------- |
+| `PORT`                 | Backend port                       | `3015`                  |
+| `NODE_ENV`             | Node environment                   | `development`           |
+| `TAZAMA_AUTH_URL`      | Auth-service base URL (no `/v1/auth`) | _(required)_         |
+| `ADMIN_SERVICE_URL`    | Admin-service base URL             | _(required)_            |
+| `AUTH_PUBLIC_KEY_PATH` | Keycloak public key path           | _(required)_            |
+| `CERT_PATH_PUBLIC`     | Public certificate path            | _(required)_            |
+| `FUNCTION_NAME`        | Function name                      | _(required)_            |
+| `CORS_ORIGINS`         | Comma-separated allowed browser origins. Unset → only the dev origin (`http://localhost:5176`); set empty → no origins (fail closed). | _(dev origin)_ |
+| `HTTP_TIMEOUT_MS`      | Outbound timeout (ms) for auth-service and admin-service calls. Must be numeric — a non-numeric value aborts startup. | `10000` |
 
 ### Frontend
 

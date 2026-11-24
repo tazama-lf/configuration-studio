@@ -9,6 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
+import { isProductionEnv, parseCorsOrigins } from './config/runtime-config';
 /* eslint-enable import/first */
 
 async function bootstrap(): Promise<void> {
@@ -16,24 +17,15 @@ async function bootstrap(): Promise<void> {
   const configService = app.get(ConfigService);
   const logger = new Logger('Bootstrap');
 
-  /**
-   * NODE_ENV drives environment-specific behavior below (Swagger, CSP).
-   * 'production' and 'prod' both count as production.
-   */
-  const nodeEnv = configService.get<string>('NODE_ENV') ?? 'development';
-  const isProduction = nodeEnv === 'production' || nodeEnv === 'prod';
+  // NODE_ENV drives environment-specific behavior below (Swagger, CSP);
+  // 'production' and 'prod' both count as production.
+  const isProduction = isProductionEnv(configService.get<string>('NODE_ENV'));
 
-  /**
-   * Allowed CORS origins. `origin: true` reflected any Origin header back
-   * together with credentials, letting any site make authenticated requests
-   * to this API. Restrict to the origins configured via CORS_ORIGINS
-   * (comma-separated); default to the local dev frontend when unset, and
-   * allow none when explicitly set empty.
-   */
-  const corsOrigins = (configService.get<string>('CORS_ORIGINS') ?? 'http://localhost:5176')
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter((origin) => origin.length > 0);
+  // Allowed CORS origins. `origin: true` used to reflect any Origin header
+  // back together with credentials; restrict to the origins configured via
+  // CORS_ORIGINS (comma-separated), default to the dev frontend when unset,
+  // and allow none when explicitly set empty. See parseCorsOrigins.
+  const corsOrigins = parseCorsOrigins(configService.get<string>('CORS_ORIGINS'),);
 
   /**
    * Security headers. Full helmet in production; in development the CSP is
