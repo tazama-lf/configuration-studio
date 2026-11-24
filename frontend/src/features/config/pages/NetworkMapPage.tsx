@@ -166,17 +166,19 @@ const NetworkMapPage: React.FC = () => {
   }, []);
 
   const handleActivate = async (record: NetworkMapRecord) => {
-    const activeMap = await findActiveMap();
-    if (activeMap && activeMap.cfg !== record.cfg) {
-      showError(
-        "Failed to activate network map",
-        `Network map ${activeMap.cfg} is already active. Deactivate it first.`,
-      );
-      return;
-    }
+    // Busy state covers the lookup too: without it a second click during
+    // findActiveMap() could start a duplicate activation.
     setActionLoading(true);
     setActionMenuAnchor(null);
     try {
+      const activeMap = await findActiveMap();
+      if (activeMap && activeMap.cfg !== record.cfg) {
+        showError(
+          "Failed to activate network map",
+          `Network map ${activeMap.cfg} is already active. Deactivate it first.`,
+        );
+        return;
+      }
       await configApi.activateNetworkMap(record.cfg, "broadcast");
       showSuccess(`Network map ${record.cfg} activated successfully`);
       fetchData();
@@ -220,6 +222,10 @@ const NetworkMapPage: React.FC = () => {
       showError("Validation error", "Config Version is required");
       return;
     }
+    if (!formData.name.trim()) {
+      showError("Validation error", "Name is required");
+      return;
+    }
     if (!isValidConfigVersion(formData.cfg)) {
       showError("Validation error", "Config Version must contain only digits and dots (e.g. 1.0.0)");
       return;
@@ -237,15 +243,13 @@ const NetworkMapPage: React.FC = () => {
       showError("Validation error", "Messages must be a JSON array (e.g. [] or [{ id: 'x', cfg: '1.0.0', ... }])");
       return;
     }
-    // Busy state covers the active-map lookup so a double-click cannot start a
-    // second save while the check is in flight; otherwise the first save could
-    // send its older captured payload after the second one and win the race.
+    // Busy state covers the active-map lookup so a double-click cannot
+    // start a second save while the check is in flight.
     setActionLoading(true);
     try {
-      // Only one network map can be active per tenant (enforced by a unique DB
-      // index). Reject the save up front with a clear message instead of letting
-      // the raw constraint error through. The check queries the API so an active
-      // map on another page is still caught.
+      // Only one network map can be active per tenant (enforced by a unique
+      // DB index). The check queries the API so an active map on another
+      // page is still caught; the raw constraint error never reaches the user.
       if (formData.active) {
         const activeMap = await findActiveMap();
         if (activeMap && activeMap.cfg !== formData.cfg) {
@@ -253,9 +257,10 @@ const NetworkMapPage: React.FC = () => {
           return;
         }
       }
-      const payload = {
+      // The form requires a name, so it is always present here.
+      const payload: Record<string, unknown> = {
         cfg: formData.cfg,
-        name: formData.name,
+        name: formData.name.trim(),
         active: formData.active,
         messages: parsedMessages,
         tenantId,
@@ -464,6 +469,7 @@ const NetworkMapPage: React.FC = () => {
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 disabled={isReadOnly}
+                required
                 fullWidth
                 slotProps={{ htmlInput: { maxLength: MAX_DESCRIPTION_LENGTH } }}
                 helperText="Display name of the network map"

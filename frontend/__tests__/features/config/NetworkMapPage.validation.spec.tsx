@@ -100,6 +100,7 @@ describe("NetworkMapPage validation paths", () => {
     renderPage();
     fireEvent.click(screen.getByText("Create New"));
     await waitFor(() => expect(screen.getByText("Create")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Test Map" } });
     fireEvent.change(screen.getByLabelText("Config Version"), { target: { value: "1.0.0" } });
     fireEvent.click(screen.getByTestId("inject-invalid-json"));
     fireEvent.click(screen.getByText("Create"));
@@ -112,6 +113,7 @@ describe("NetworkMapPage validation paths", () => {
     renderPage();
     fireEvent.click(screen.getByText("Create New"));
     await waitFor(() => expect(screen.getByText("Create")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Test Map" } });
     fireEvent.change(screen.getByLabelText("Config Version"), { target: { value: "1.0.0" } });
     fireEvent.click(screen.getByTestId("inject-non-array"));
     fireEvent.click(screen.getByText("Create"));

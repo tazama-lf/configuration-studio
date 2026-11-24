@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException, HttpException, HttpStatus } from '@nestjs/common';
 import { AdminServiceClient } from '../services/admin-service-client.service';
 
 export type ConfigTable = 'network_map' | 'rule' | 'typology';
@@ -206,6 +206,14 @@ export class ConfigProxyService {
     }
 
     const existing = await this.fetchExistingRecord(table, id, cfg, token, tenantId);
+    if (existing === null) {
+      // The preservation read failed (transient admin-service error). A
+      // full-replace PUT now would wipe the very fields this mechanism
+      // protects, so reject the update and let the client retry.
+      throw new ServiceUnavailableException(
+        'Could not read the stored record to preserve its fields. Please retry.',
+      );
+    }
     if (!existing) {
       return;
     }
@@ -219,8 +227,11 @@ export class ConfigProxyService {
 
   /**
    * Read the stored record so update() can preserve fields the caller omitted.
-   * Failures are non-fatal: the record may not exist yet, or admin-service may
-   * be unreachable, and the update itself is what reports those outcomes.
+   * A failed read is distinguished from a confirmed-absent record: the
+   * returned marker tells update() whether the stored record is known to not
+   * exist (safe to proceed without preservation) or whether the read failed
+   * (the update must be rejected — proceeding would send a full-replace PUT
+   * that wipes the fields this mechanism exists to preserve).
    */
   private async fetchExistingRecord(
     table: ConfigTable,
@@ -228,15 +239,23 @@ export class ConfigProxyService {
     cfg: string,
     token: string,
     tenantId?: string,
-  ): Promise<Record<string, unknown> | undefined> {
+  ): Promise<Record<string, unknown> | undefined | null> {
     try {
       const existing = await this.getById(table, id, cfg, token, tenantId);
       return this.isPlainRecord(existing) ? existing : undefined;
     } catch (error) {
+      // A 404 from admin-service is a confirmed absent record: the update
+      // may proceed without preservation (create-style upsert).
+      // AdminServiceClient throws HttpException, so the status comes from
+      // getStatus() — the body's statusCode key is not the HTTP status.
+      if (error instanceof HttpException && error.getStatus() === HttpStatus.NOT_FOUND) {
+        return undefined;
+      }
       this.logger.warn(
         `Could not read existing ${table} ${id}/${cfg} to preserve omitted fields: ${(error as Error).message}`,
       );
-      return undefined;
+      // null = the read failed (transient); undefined = confirmed absent.
+      return null;
     }
   }
 
