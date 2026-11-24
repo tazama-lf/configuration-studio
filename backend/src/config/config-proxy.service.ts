@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException, HttpException, HttpStatus } from '@nestjs/common';
 import { AdminServiceClient } from '../services/admin-service-client.service';
 
 export type ConfigTable = 'network_map' | 'rule' | 'typology';
@@ -187,9 +187,12 @@ export class ConfigProxyService {
    * is deleted. The frontend builds its update payload from the form and does
    * not carry creDtTm forward, which used to silently wipe the creation
    * timestamp on every edit. `creDtTm` is merged back from the stored record
-   * whenever it is omitted; if that read fails we proceed without it rather
-   * than blocking every rule/typology edit (the field is recoverable, and
-   * admin-service stamps its own timestamps).
+   * whenever it is omitted.
+   *
+   * If the preservation read fails (transient admin-service error) we cannot
+   * safely send the PUT — it would drop creDtTm (the very #29 data loss) — so
+   * the update is rejected with a retryable 503. A 404 is a confirmed-absent
+   * record (create-style upsert) and proceeds normally.
    */
   private async preserveOmittedFields(
     table: ConfigTable,
@@ -207,16 +210,21 @@ export class ConfigProxyService {
     }
 
     const existing = await this.fetchExistingRecord(table, id, cfg, token, tenantId);
+    if (existing === null) {
+      throw new ServiceUnavailableException(
+        'Could not read the stored record to preserve its creation timestamp. Please retry.',
+      );
+    }
     if (existing && existing.creDtTm !== undefined) {
       body.creDtTm = existing.creDtTm;
     }
   }
 
   /**
-   * Read the stored record so update() can preserve fields the caller omitted.
-   * A failed read is non-fatal: creDtTm is recoverable and admin-service stamps
-   * its own timestamps, so we simply carry on without it (never block a write
-   * over a stale-read failure).
+   * Read the stored record so update() can preserve creDtTm. Returns:
+   *   - the record object when found
+   *   - undefined when the record is confirmed absent (a 404 → upsert path)
+   *   - null when the read failed transiently (caller must not proceed)
    */
   private async fetchExistingRecord(
     table: ConfigTable,
@@ -224,15 +232,19 @@ export class ConfigProxyService {
     cfg: string,
     token: string,
     tenantId?: string,
-  ): Promise<Record<string, unknown> | undefined> {
+  ): Promise<Record<string, unknown> | undefined | null> {
     try {
       const existing = await this.getById(table, id, cfg, token, tenantId);
       return this.isPlainRecord(existing) ? existing : undefined;
     } catch (error) {
+      // A 404 is a confirmed-absent record, not a failure.
+      if (error instanceof HttpException && error.getStatus() === HttpStatus.NOT_FOUND) {
+        return undefined;
+      }
       this.logger.warn(
-        `Could not read existing ${table} ${id}/${cfg} to preserve crDtTm: ${(error as Error).message}`,
+        `Could not read existing ${table} ${id}/${cfg} to preserve creDtTm: ${(error as Error).message}`,
       );
-      return undefined;
+      return null;
     }
   }
 
