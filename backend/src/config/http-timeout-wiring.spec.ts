@@ -1,15 +1,22 @@
 import { Test } from '@nestjs/testing';
-import { HttpModule, HttpService } from '@nestjs/axios';
+import { HttpModule } from '@nestjs/axios';
 import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from '../auth/auth.module';
+import { AuthService } from '../auth/auth.service';
 import { ConfigProxyModule } from './config.module';
+import { AdminServiceClient } from '../services/admin-service-client.service';
 
 /**
  * Guards the #38 hardening fix: AuthModule and ConfigProxyModule must consume
  * the single global HttpModule registered in app.module.ts (which carries the
  * HTTP_TIMEOUT_MS timeout). If either module re-adds its own bare HttpModule,
- * its own import wins and HttpService.timeout falls back to axios's default of
- * 0 - so these assertions would fail.
+ * its own import wins and that client's HttpService falls back to axios's
+ * default timeout of 0.
+ *
+ * The assertions read the HttpService actually injected into AuthService and
+ * AdminServiceClient (not a container-wide `get(HttpService)`, which can hand
+ * back the same provider regardless). A local HttpModule in *either* module
+ * therefore fails the corresponding assertion.
  */
 describe('HTTP timeout wiring', () => {
   const originalAdminUrl = process.env.ADMIN_SERVICE_URL;
@@ -27,7 +34,7 @@ describe('HTTP timeout wiring', () => {
     }
   });
 
-  it('AuthService and AdminServiceClient use the global configured HttpService', async () => {
+  it('injects the global configured HttpService into both clients', async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({ isGlobal: true }),
@@ -40,11 +47,12 @@ describe('HTTP timeout wiring', () => {
       ],
     }).compile();
 
-    const authHttp = moduleRef.select(AuthModule).get(HttpService);
-    const configHttp = moduleRef.select(ConfigProxyModule).get(HttpService);
+    const { httpService: authHttp } = moduleRef.get<AuthService>(AuthService);
+    const { httpService: adminHttp } =
+      moduleRef.get<AdminServiceClient>(AdminServiceClient);
 
     expect(authHttp.axiosRef.defaults.timeout).toBe(7777);
-    expect(configHttp.axiosRef.defaults.timeout).toBe(7777);
+    expect(adminHttp.axiosRef.defaults.timeout).toBe(7777);
 
     await moduleRef.close();
   });
