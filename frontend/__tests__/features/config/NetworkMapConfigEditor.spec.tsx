@@ -355,6 +355,20 @@ describe("NetworkMapConfigEditor", () => {
     expect(lastCall).toContain('"tenantId": "tenantB"');
   });
 
+  // ── #37 follow-ups: no per-typology tenantId ──────────────────────────────
+
+  it("does not add a per-typology tenantId when adding a typology", () => {
+    // The DB network-map record has no tenantId inside typologies; adding one
+    // made saved payloads diverge from the stored shape. (The map's OWN
+    // top-level tenantId is expected and unrelated.)
+    render(<NetworkMapConfigEditor {...defaultProps} tenantId="tenantA" />);
+    fireEvent.click(screen.getByText("Add Message"));
+    fireEvent.click(screen.getByText("Add Typology"));
+    const pre = document.querySelector("pre");
+    const preview = JSON.parse(pre?.textContent ?? "{}");
+    expect(preview.messages[0].typologies[0]).not.toHaveProperty("tenantId");
+  });
+
   // ── API fetch error handling (lines 92-98 catch block) ───────────────────
 
   it("handles API fetch error gracefully", async () => {

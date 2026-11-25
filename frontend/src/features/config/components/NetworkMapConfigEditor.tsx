@@ -31,7 +31,6 @@ interface TypologyRef {
   id: string;
   cfg: string;
   rules: RuleRef[];
-  tenantId: string;
 }
 
 interface Message {
@@ -158,7 +157,7 @@ export default function NetworkMapConfigEditor({
   const addTypology = (msgIdx: number) => {
     const msg = messages[msgIdx];
     updateMessage(msgIdx, {
-      typologies: [...msg.typologies, { id: '', cfg: '', rules: [], tenantId: tenantId ?? 'default' }],
+      typologies: [...msg.typologies, { id: '', cfg: '', rules: [] }],
     });
   };
 

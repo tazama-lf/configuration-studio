@@ -63,8 +63,4 @@ export class NetworkMapPayloadDto extends BaseConfigPayloadDto {
     @IsOptional()
     @IsBoolean()
     active?: boolean;
-
-    @IsOptional()
-    @IsString()
-    name?: string;
 }
