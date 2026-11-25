@@ -1,0 +1,38 @@
+{
+  "name": "configuration-studio",
+  "version": "1.0.0",
+  "description": "Configuration Studio for Tazama configs",
+  "keywords": [
+    "Tazama",
+    "Configs"
+  ],
+  "homepage": "https://github.com/tazama-lf/configuration-studio#readme",
+  "bugs": {
+    "url": "https://github.com/tazama-lf/configuration-studio/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tazama-lf/configuration-studio.git"
+  },
+  "license": "ISC",
+  "author": "Samit Saleem",
+  "type": "commonjs",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "prepare": "husky",
+    "lint:eslint": "npm run backend:lint:eslint && npm run frontend:lint:eslint",
+    "backend:lint:eslint": "cd backend && npm ci && npm run lint",
+    "frontend:lint:eslint": "cd frontend && npm ci && npm run lint",
+    "test": "npm run backend:test && npm run frontend:test",
+    "backend:test": "cd backend && npm ci && npm run test",
+    "frontend:test": "cd frontend && npm ci && npm run test",
+    "build": "npm run backend:build",
+    "backend:build": "cd backend && npm ci && npm run build"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7"
+  }
+}

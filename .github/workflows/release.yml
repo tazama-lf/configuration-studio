@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: Apache-2.0
+
+# Caller workflow: creates a GitHub release and tag for this repo.
+#
+# Triggers:
+#   - Automatically on push to the target branch (main) when package.json changes,
+#     i.e. right after the release-train PR is merged. This completes the release (tag + GitHub
+#     release) alongside publish.yml (npm) and any package image builds.
+#   - Manually via workflow_dispatch from the target branch.
+#
+# What the central workflow does:
+#   1. Creates a platform GitHub release/tag from RELEASE_VERSION (e.g. v4.0.0).
+#   2. Records the npm package.json version in release notes when present.
+#   3. Generates a changelog from commits since the previous tag.
+#   (The central workflow is idempotent: it skips if the tag/release already exists.)
+#
+# This file is managed centrally - do not edit manually.
+# To change release behaviour, update the reusable workflow in tazama-lf/workflows.
+
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+    inputs:
+      tag_version:
+        description: "Platform GitHub release tag version. Leave blank to use RELEASE_VERSION."
+        required: false
+        default: ""
+      default_version:
+        description: "Fallback platform version for repos without package.json."
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  release:
+    uses: tazama-lf/workflows/.github/workflows/release.yml@v1
+    with:
+      tag_version: ${{ inputs.tag_version || vars.RELEASE_VERSION || vars.DEFAULT_RELEASE_VERSION || '' }}
+      default_version: ${{ inputs.default_version || vars.DEFAULT_RELEASE_VERSION || vars.RELEASE_VERSION || '0.0.0' }}
+      expected_version: ${{ inputs.tag_version || vars.RELEASE_VERSION || vars.DEFAULT_RELEASE_VERSION || '' }}
+      version_policy: ${{ vars.PACKAGE_VERSION_POLICY || 'aligned' }}
+      version_mismatch_behavior: ${{ vars.VERSION_MISMATCH_BEHAVIOR || 'fail' }}
+      release_branch: ${{ vars.TARGET_BRANCH || 'main' }}
+      milestone_number: ${{ vars.RELEASE_MILESTONE_NUMBER || '' }}
+    secrets: inherit
