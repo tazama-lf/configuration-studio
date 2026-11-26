@@ -1,9 +1,9 @@
 import { plainToClass } from 'class-transformer';
 import {
   IsEnum,
-  IsNumberString,
   IsString,
   IsOptional,
+  Matches,
   validateSync,
 } from 'class-validator';
 
@@ -42,12 +42,16 @@ class EnvironmentVariables {
   @IsString()
   CORS_ORIGINS?: string;
 
-  // Digits-only: app.module.ts reads this with configService.get<number>(), a
-  // type hint only, so a non-numeric value (e.g. "10s") would reach axios as
-  // NaN and silently disable the timeout. no_symbols also rejects decimals
-  // like ".5", whose parseInt() result is NaN.
+  // Positive integer only. app.module.ts reads this with
+  // configService.get<number>(), a type hint only, so the raw string reaches
+  // axios. Non-numeric ("10s") and decimals (".5") become NaN/no timeout, and
+  // "0" is worse: axios parses the string '0' and starts a zero-delay timer,
+  // so every auth/admin request aborts immediately ("timeout of 0ms
+  // exceeded"). Require a positive integer so these fail fast at startup.
   @IsOptional()
-  @IsNumberString({ no_symbols: true })
+  @Matches(/^[1-9]\d*$/, {
+    message: 'HTTP_TIMEOUT_MS must be a positive integer (milliseconds)',
+  })
   HTTP_TIMEOUT_MS?: string;
 }
 

@@ -66,6 +66,11 @@ describe('env.validation', () => {
       expect(result.HTTP_TIMEOUT_MS).toBe('10000');
     });
 
+    it('should accept the smallest positive HTTP_TIMEOUT_MS', () => {
+      const result = validate({ ...validEnv, HTTP_TIMEOUT_MS: '1' });
+      expect(result.HTTP_TIMEOUT_MS).toBe('1');
+    });
+
     it('should reject a non-numeric HTTP_TIMEOUT_MS so startup fails fast', () => {
       expect(() => validate({ ...validEnv, HTTP_TIMEOUT_MS: '10s' })).toThrow(
         /HTTP_TIMEOUT_MS/,
@@ -74,6 +79,12 @@ describe('env.validation', () => {
 
     it('should reject a decimal HTTP_TIMEOUT_MS (parseInt would yield NaN)', () => {
       expect(() => validate({ ...validEnv, HTTP_TIMEOUT_MS: '.5' })).toThrow(
+        /HTTP_TIMEOUT_MS/,
+      );
+    });
+
+    it('should reject HTTP_TIMEOUT_MS=0 (axios treats the string "0" as a zero-delay timer)', () => {
+      expect(() => validate({ ...validEnv, HTTP_TIMEOUT_MS: '0' })).toThrow(
         /HTTP_TIMEOUT_MS/,
       );
     });
