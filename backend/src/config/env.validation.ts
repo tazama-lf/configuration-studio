@@ -1,5 +1,12 @@
 import { plainToClass } from 'class-transformer';
-import { IsEnum, IsNotEmpty, IsString, IsOptional, Matches, validateSync } from 'class-validator';
+import { IsEnum, IsString, IsOptional, Matches, validateSync } from 'class-validator';
+
+// A required value must contain at least one non-whitespace character:
+// @IsNotEmpty() alone accepts whitespace-only strings like "   ", which then
+// reach config as an unusable URL/path and fail at request time instead of at
+// startup.
+const REQUIRED_NON_BLANK = /\S/;
+const nonBlank = { message: '$property must not be blank' };
 
 enum NodeEnv {
   DEVELOPMENT = 'development',
@@ -13,24 +20,19 @@ class EnvironmentVariables {
   @IsEnum(NodeEnv)
   NODE_ENV: NodeEnv = NodeEnv.DEVELOPMENT;
 
-  @IsString()
-  @IsNotEmpty()
+  @Matches(REQUIRED_NON_BLANK, nonBlank)
   FUNCTION_NAME: string;
 
-  @IsString()
-  @IsNotEmpty()
+  @Matches(REQUIRED_NON_BLANK, nonBlank)
   TAZAMA_AUTH_URL: string;
 
-  @IsString()
-  @IsNotEmpty()
+  @Matches(REQUIRED_NON_BLANK, nonBlank)
   AUTH_PUBLIC_KEY_PATH: string;
 
-  @IsString()
-  @IsNotEmpty()
+  @Matches(REQUIRED_NON_BLANK, nonBlank)
   CERT_PATH_PUBLIC: string;
 
-  @IsString()
-  @IsNotEmpty()
+  @Matches(REQUIRED_NON_BLANK, nonBlank)
   ADMIN_SERVICE_URL: string;
 
   @IsOptional()

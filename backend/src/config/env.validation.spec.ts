@@ -116,6 +116,13 @@ describe('env.validation', () => {
       expect(() => validate({ ...validEnv, ADMIN_SERVICE_URL: '' })).toThrow(/ADMIN_SERVICE_URL/);
     });
 
+    it.each(['FUNCTION_NAME', 'TAZAMA_AUTH_URL', 'AUTH_PUBLIC_KEY_PATH', 'CERT_PATH_PUBLIC', 'ADMIN_SERVICE_URL'] as const)(
+      'should reject a whitespace-only %s (IsNotEmpty alone would accept it)',
+      (key) => {
+        expect(() => validate({ ...validEnv, [key]: '   ' })).toThrow(new RegExp(key));
+      },
+    );
+
     it('should throw when ADMIN_SERVICE_URL is missing', () => {
       expect(() => validate(omit(validEnv, 'ADMIN_SERVICE_URL'))).toThrow(/ADMIN_SERVICE_URL/);
     });
