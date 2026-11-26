@@ -7,13 +7,18 @@ export type ConfigTable = 'network_map' | 'rule' | 'typology';
 export class ConfigProxyService {
   private readonly logger = new Logger(ConfigProxyService.name);
 
-  constructor(private readonly adminServiceClient: AdminServiceClient) {}
+  constructor(private readonly adminServiceClient: AdminServiceClient) { }
 
   /**
    * List records from a config table (paginated)
    * GET /v1/admin/configuration/{table}?limit=&offset=&sort=&order=&filters=
    */
-  async list(table: ConfigTable, token: string, query: Record<string, string | undefined>, tenantId?: string): Promise<unknown> {
+  async list(
+    table: ConfigTable,
+    token: string,
+    query: Record<string, string | undefined>,
+    tenantId?: string,
+  ): Promise<unknown> {
     const queryString = this.buildQueryString(query);
     const path = `/v1/admin/configuration/${table}${queryString}`;
     this.logger.log(`Listing ${table}: ${path}${tenantId ? ` [tenant: ${tenantId}]` : ''}`);
@@ -25,7 +30,13 @@ export class ConfigProxyService {
    * GET /v1/admin/configuration/{table}/{id}/{cfg}  (rule, typology)
    * GET /v1/admin/configuration/{table}/{cfg}        (network_map)
    */
-  async getById(table: ConfigTable, id: string, cfg: string, token: string, tenantId?: string): Promise<unknown> {
+  async getById(
+    table: ConfigTable,
+    id: string,
+    cfg: string,
+    token: string,
+    tenantId?: string,
+  ): Promise<unknown> {
     const path = this.isSingleKeyTable(table)
       ? `/v1/admin/configuration/${table}/${encodeURIComponent(cfg)}`
       : `/v1/admin/configuration/${table}/${encodeURIComponent(id)}/${encodeURIComponent(cfg)}`;
@@ -37,14 +48,19 @@ export class ConfigProxyService {
    * Create a new record
    * POST /v1/admin/configuration/{table}
    */
-  async create(table: ConfigTable, body: unknown, token: string, tenantId?: string): Promise<unknown> {
+  async create(
+    table: ConfigTable,
+    body: unknown,
+    token: string,
+    tenantId?: string,
+  ): Promise<unknown> {
     const path = `/v1/admin/configuration/${table}`;
     this.logger.log(`Creating ${table}${tenantId ? ` [tenant: ${tenantId}]` : ''}`);
     // Inject tenantId into the body so the generated column in the DB has a value
     if (body !== null && typeof body === 'object') {
       (body as Record<string, unknown>).tenantId = tenantId;
     }
-    const bodyWithTimestamps = this.injectTimestamps(body, true);
+    const bodyWithTimestamps = this.injectTimestamps(table, body, true);
     return await this.adminServiceClient.executeHttpRequest('POST', path, token, tenantId, bodyWithTimestamps);
   }
 
@@ -53,7 +69,14 @@ export class ConfigProxyService {
    * PUT /v1/admin/configuration/{table}/{id}/{cfg}  (rule, typology)
    * PUT /v1/admin/configuration/{table}/{cfg}        (network_map)
    */
-  async update(table: ConfigTable, id: string, cfg: string, body: unknown, token: string, tenantId?: string): Promise<unknown> {
+  async update(
+    table: ConfigTable,
+    id: string,
+    cfg: string,
+    body: unknown,
+    token: string,
+    tenantId?: string,
+  ): Promise<unknown> {
     const path = this.isSingleKeyTable(table)
       ? `/v1/admin/configuration/${table}/${encodeURIComponent(cfg)}`
       : `/v1/admin/configuration/${table}/${encodeURIComponent(id)}/${encodeURIComponent(cfg)}`;
@@ -62,7 +85,7 @@ export class ConfigProxyService {
     if (body !== null && typeof body === 'object') {
       (body as Record<string, unknown>).tenantId = tenantId;
     }
-    const bodyWithTimestamps = this.injectTimestamps(body, false);
+    const bodyWithTimestamps = this.injectTimestamps(table, body, false);
     await this.preserveOmittedFields(table, id, cfg, bodyWithTimestamps, token, tenantId);
     return await this.adminServiceClient.executeHttpRequest('PUT', path, token, tenantId, bodyWithTimestamps);
   }
@@ -72,7 +95,13 @@ export class ConfigProxyService {
    * DELETE /v1/admin/configuration/{table}/{id}/{cfg}  (rule, typology)
    * DELETE /v1/admin/configuration/{table}/{cfg}        (network_map)
    */
-  async delete(table: ConfigTable, id: string, cfg: string, token: string, tenantId?: string): Promise<unknown> {
+  async delete(
+    table: ConfigTable,
+    id: string,
+    cfg: string,
+    token: string,
+    tenantId?: string,
+  ): Promise<unknown> {
     const path = this.isSingleKeyTable(table)
       ? `/v1/admin/configuration/${table}/${encodeURIComponent(cfg)}`
       : `/v1/admin/configuration/${table}/${encodeURIComponent(id)}/${encodeURIComponent(cfg)}`;
@@ -84,7 +113,12 @@ export class ConfigProxyService {
    * Activate a network map by cfg
    * POST /v1/admin/configuration/network_map/{cfg}/activate
    */
-  async activate(cfg: string, body: unknown, token: string, tenantId?: string): Promise<unknown> {
+  async activate(
+    cfg: string,
+    body: unknown,
+    token: string,
+    tenantId?: string,
+  ): Promise<unknown> {
     const path = `/v1/admin/configuration/network_map/${encodeURIComponent(cfg)}/activate`;
     this.logger.log(`Activating network_map ${cfg}${tenantId ? ` [tenant: ${tenantId}]` : ''}`);
     return await this.adminServiceClient.executeHttpRequest('POST', path, token, tenantId, body);
@@ -98,7 +132,11 @@ export class ConfigProxyService {
    * otherwise no Content-Type header is sent and the admin-service rejects
    * the request with 415 Unsupported Media Type.
    */
-  async deactivate(cfg: string, token: string, tenantId?: string): Promise<unknown> {
+  async deactivate(
+    cfg: string,
+    token: string,
+    tenantId?: string,
+  ): Promise<unknown> {
     const path = `/v1/admin/configuration/network_map/${encodeURIComponent(cfg)}/deactivate`;
     this.logger.log(`Deactivating network_map ${cfg}${tenantId ? ` [tenant: ${tenantId}]` : ''}`);
     return await this.adminServiceClient.executeHttpRequest('POST', path, token, tenantId, {});
@@ -108,7 +146,11 @@ export class ConfigProxyService {
    * Reload the active network map
    * POST /v1/admin/configuration/network_map/reload
    */
-  async reload(body: unknown, token: string, tenantId?: string): Promise<unknown> {
+  async reload(
+    body: unknown,
+    token: string,
+    tenantId?: string,
+  ): Promise<unknown> {
     const path = `/v1/admin/configuration/network_map/reload`;
     this.logger.log(`Reloading network_map${tenantId ? ` [tenant: ${tenantId}]` : ''}`);
     return await this.adminServiceClient.executeHttpRequest('POST', path, token, tenantId, body);
@@ -116,11 +158,14 @@ export class ConfigProxyService {
 
   /**
    * Inject creDtTm and updDtTm timestamps into the request body.
-   * On create: both creDtTm and updDtTm are set to the current time.
-   * On update: only updDtTm is refreshed; creDtTm is preserved by
-   * preserveOmittedFields().
+   *
+   * On create we stamp both for every table. On update, `creDtTm` must never be
+   * caller-controlled, so it is never stamped here (preserveOmittedFields keeps
+   * the stored value). `updDtTm` is only stamped for `rule`: admin-service's own
+   * repositories stamp `updDtTm` for network_map and typology, and those stored
+   * records never carry it, so adding it here would diverge from the DB shape.
    */
-  private injectTimestamps(body: unknown, isCreate: boolean): unknown {
+  private injectTimestamps(table: ConfigTable, body: unknown, isCreate: boolean): unknown {
     if (body === null || typeof body !== 'object') {
       return body;
     }
@@ -129,7 +174,7 @@ export class ConfigProxyService {
     if (isCreate) {
       record.creDtTm = now;
       record.updDtTm = now;
-    } else {
+    } else if (table === 'rule') {
       record.updDtTm = now;
     }
     return record;
@@ -141,10 +186,13 @@ export class ConfigProxyService {
    * A PUT replaces the whole stored configuration, so any key the caller omits
    * is deleted. The frontend builds its update payload from the form and does
    * not carry creDtTm forward, which used to silently wipe the creation
-   * timestamp on every edit. Network map edits have the same problem for
-   * `name`: the UI form has no name field, but every stored network map has
-   * one, so every edit used to clear it. When the caller did not supply
-   * these fields, read the stored record and merge them back in.
+   * timestamp on every edit. `creDtTm` is merged back from the stored record
+   * whenever it is omitted.
+   *
+   * If the preservation read fails (transient admin-service error) we cannot
+   * safely send the PUT — it would drop creDtTm (the very #29 data loss) — so
+   * the update is rejected with a retryable 503. A 404 is a confirmed-absent
+   * record (create-style upsert) and proceeds normally.
    */
   private async preserveOmittedFields(
     table: ConfigTable,
@@ -157,37 +205,26 @@ export class ConfigProxyService {
     if (!this.isPlainRecord(body)) {
       return;
     }
-    const preserveCreDtTm = body.creDtTm === undefined;
-    const preserveName = table === 'network_map' && body.name === undefined;
-    if (!preserveCreDtTm && !preserveName) {
+    if (body.creDtTm !== undefined) {
       return;
     }
 
     const existing = await this.fetchExistingRecord(table, id, cfg, token, tenantId);
     if (existing === null) {
-      // The preservation read failed (transient admin-service error). A
-      // full-replace PUT now would wipe the very fields this mechanism
-      // protects, so reject the update and let the client retry.
-      throw new ServiceUnavailableException('Could not read the stored record to preserve its fields. Please retry.');
+      throw new ServiceUnavailableException(
+        'Could not read the stored record to preserve its creation timestamp. Please retry.',
+      );
     }
-    if (!existing) {
-      return;
-    }
-    if (preserveCreDtTm && existing.creDtTm !== undefined) {
+    if (existing && existing.creDtTm !== undefined) {
       body.creDtTm = existing.creDtTm;
-    }
-    if (preserveName && existing.name !== undefined) {
-      body.name = existing.name;
     }
   }
 
   /**
-   * Read the stored record so update() can preserve fields the caller omitted.
-   * A failed read is distinguished from a confirmed-absent record: the
-   * returned marker tells update() whether the stored record is known to not
-   * exist (safe to proceed without preservation) or whether the read failed
-   * (the update must be rejected — proceeding would send a full-replace PUT
-   * that wipes the fields this mechanism exists to preserve).
+   * Read the stored record so update() can preserve creDtTm. Returns:
+   *   - the record object when found
+   *   - undefined when the record is confirmed absent (a 404 → upsert path)
+   *   - null when the read failed transiently (caller must not proceed)
    */
   private async fetchExistingRecord(
     table: ConfigTable,
@@ -200,15 +237,24 @@ export class ConfigProxyService {
       const existing = await this.getById(table, id, cfg, token, tenantId);
       return this.isPlainRecord(existing) ? existing : undefined;
     } catch (error) {
-      // A 404 from admin-service is a confirmed absent record: the update
-      // may proceed without preservation (create-style upsert).
-      // AdminServiceClient throws HttpException, so the status comes from
-      // getStatus() — the body's statusCode key is not the HTTP status.
-      if (error instanceof HttpException && error.getStatus() === HttpStatus.NOT_FOUND) {
-        return undefined;
+      // AdminServiceClient throws HttpException. A 404 is a confirmed-absent
+      // record (create-style upsert) - proceed without preservation. Any other
+      // deliberate 4xx (401 expired session, 403 permission, 400 bad request)
+      // is the client's real problem and must surface as-is - masking it as a
+      // 503 "please retry" would hide an unrecoverable error. Only 5xx /
+      // connection failures are transient and return null (-> 503).
+      if (error instanceof HttpException) {
+        const status = error.getStatus();
+        if (status === HttpStatus.NOT_FOUND) {
+          return undefined;
+        }
+        if (status < HttpStatus.INTERNAL_SERVER_ERROR) {
+          throw error;
+        }
       }
-      this.logger.warn(`Could not read existing ${table} ${id}/${cfg} to preserve omitted fields: ${(error as Error).message}`);
-      // null = the read failed (transient); undefined = confirmed absent.
+      this.logger.warn(
+        `Could not read existing ${table} ${id}/${cfg} to preserve creDtTm: ${(error as Error).message}`,
+      );
       return null;
     }
   }

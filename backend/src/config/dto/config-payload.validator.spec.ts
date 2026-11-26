@@ -75,8 +75,19 @@ describe('validateConfigPayload', () => {
       expect(() => validateConfigPayload('network_map', documentedNetworkMapPayload)).not.toThrow();
     });
 
-    it('accepts a network map without the optional active/name fields', () => {
-      expect(() => validateConfigPayload('network_map', { cfg: '1.0.0', messages: [] })).not.toThrow();
+    it('accepts a network map without the optional active field', () => {
+      expect(() =>
+        validateConfigPayload('network_map', { cfg: '1.0.0', messages: [] }),
+      ).not.toThrow();
+    });
+
+    it('accepts a network map that carries an extra name field (tolerated, not required)', () => {
+      // `name` is not part of the NetworkMap schema; unknown properties are
+      // tolerated here (and stripped by admin-service), so a payload that
+      // includes one is still accepted.
+      expect(() =>
+        validateConfigPayload('network_map', { cfg: '1.0.0', name: 'Map', messages: [] }),
+      ).not.toThrow();
     });
 
     it('accepts a payload without tenantId', () => {
@@ -137,15 +148,21 @@ describe('validateConfigPayload', () => {
     });
 
     it('rejects a cfg sent as a number', () => {
-      expect(() => validateConfigPayload('rule', { ...documentedRulePayload, cfg: 999 })).toThrow(BadRequestException);
+      expect(() =>
+        validateConfigPayload('rule', { ...documentedRulePayload, cfg: 999 }),
+      ).toThrow(BadRequestException);
     });
 
     it('rejects a config sent as a string', () => {
-      expect(() => validateConfigPayload('rule', { ...documentedRulePayload, config: '{}' })).toThrow(BadRequestException);
+      expect(() =>
+        validateConfigPayload('rule', { ...documentedRulePayload, config: '{}' }),
+      ).toThrow(BadRequestException);
     });
 
     it('rejects a tenantId that is not a string', () => {
-      expect(() => validateConfigPayload('rule', { ...documentedRulePayload, tenantId: 42 })).toThrow(BadRequestException);
+      expect(() =>
+        validateConfigPayload('rule', { ...documentedRulePayload, tenantId: 42 }),
+      ).toThrow(BadRequestException);
     });
   });
 
@@ -156,7 +173,9 @@ describe('validateConfigPayload', () => {
       ['workflow', { workflow: 'none' }],
       ['desc', { desc: undefined }],
     ])('rejects an invalid %s', (_field, override) => {
-      expect(() => validateConfigPayload('typology', { ...documentedTypologyPayload, ...override })).toThrow(BadRequestException);
+      expect(() =>
+        validateConfigPayload('typology', { ...documentedTypologyPayload, ...override }),
+      ).toThrow(BadRequestException);
     });
   });
 
@@ -164,10 +183,11 @@ describe('validateConfigPayload', () => {
     it.each([
       ['messages', { messages: {} }],
       ['active', { active: 'yes' }],
-      ['name', { name: 12 }],
       ['cfg', { cfg: 1 }],
     ])('rejects an invalid %s', (_field, override) => {
-      expect(() => validateConfigPayload('network_map', { ...documentedNetworkMapPayload, ...override })).toThrow(BadRequestException);
+      expect(() =>
+        validateConfigPayload('network_map', { ...documentedNetworkMapPayload, ...override }),
+      ).toThrow(BadRequestException);
     });
   });
 
