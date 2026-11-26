@@ -117,7 +117,7 @@ cfg, active, messages, tenantId
 | `updDtTm`                                 | never | server-injected | **EXTRA in studio** |
 | `messages[].{id,cfg,txTp}`                | REQ  | emitted | OK |
 | `messages[].typologies[].{id,cfg,rules}`  | REQ  | emitted | OK |
-| `messages[].typologies[].tenantId`        | never | emitted at [NetworkMapConfigEditor.tsx:151](../frontend/src/features/config/components/NetworkMapConfigEditor.tsx#L151) | **EXTRA in studio** |
+| `messages[].typologies[].tenantId`        | never | not emitted | **OK — removed; per-typology `tenantId` is not part of the schema** |
 | `rules[].{id,cfg}`                        | REQ  | emitted | OK |
 
 **Network map verdict: additive diffs only.**
