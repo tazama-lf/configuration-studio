@@ -1,10 +1,5 @@
 import { Test, type TestingModule } from '@nestjs/testing';
-import {
-  BadRequestException,
-  HttpException,
-  HttpStatus,
-  RequestMethod,
-} from '@nestjs/common';
+import { BadRequestException, HttpException, HttpStatus, RequestMethod } from '@nestjs/common';
 import { PATH_METADATA, METHOD_METADATA } from '@nestjs/common/constants';
 import { ConfigController } from './config.controller';
 import { ConfigProxyService } from './config-proxy.service';
@@ -78,12 +73,7 @@ describe('ConfigController', () => {
 
       await controller.list('network-map', { limit: '10', offset: '0' }, mockUser as any);
 
-      expect(configProxyService.list).toHaveBeenCalledWith(
-        'network_map',
-        'test-token',
-        { limit: '10', offset: '0' },
-        'tenant-1',
-      );
+      expect(configProxyService.list).toHaveBeenCalledWith('network_map', 'test-token', { limit: '10', offset: '0' }, 'tenant-1');
     });
 
     it('should resolve "rule" table correctly', async () => {
@@ -91,12 +81,7 @@ describe('ConfigController', () => {
 
       await controller.list('rule', {}, mockUser as any);
 
-      expect(configProxyService.list).toHaveBeenCalledWith(
-        'rule',
-        'test-token',
-        {},
-        'tenant-1',
-      );
+      expect(configProxyService.list).toHaveBeenCalledWith('rule', 'test-token', {}, 'tenant-1');
     });
 
     it('should resolve "typology" table correctly', async () => {
@@ -104,12 +89,7 @@ describe('ConfigController', () => {
 
       await controller.list('typology', {}, mockUser as any);
 
-      expect(configProxyService.list).toHaveBeenCalledWith(
-        'typology',
-        'test-token',
-        {},
-        'tenant-1',
-      );
+      expect(configProxyService.list).toHaveBeenCalledWith('typology', 'test-token', {}, 'tenant-1');
     });
 
     it('should resolve "network_map" (underscore) table correctly', async () => {
@@ -117,18 +97,11 @@ describe('ConfigController', () => {
 
       await controller.list('network_map', {}, mockUser as any);
 
-      expect(configProxyService.list).toHaveBeenCalledWith(
-        'network_map',
-        'test-token',
-        {},
-        'tenant-1',
-      );
+      expect(configProxyService.list).toHaveBeenCalledWith('network_map', 'test-token', {}, 'tenant-1');
     });
 
     it('should throw BadRequestException for invalid table', async () => {
-      await expect(
-        controller.list('invalid-table', {}, mockUser as any),
-      ).rejects.toThrow(BadRequestException);
+      await expect(controller.list('invalid-table', {}, mockUser as any)).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -138,19 +111,11 @@ describe('ConfigController', () => {
 
       await controller.getById('rule', 'rule-1', '1.0.0', mockUser as any);
 
-      expect(configProxyService.getById).toHaveBeenCalledWith(
-        'rule',
-        'rule-1',
-        '1.0.0',
-        'test-token',
-        'tenant-1',
-      );
+      expect(configProxyService.getById).toHaveBeenCalledWith('rule', 'rule-1', '1.0.0', 'test-token', 'tenant-1');
     });
 
     it('should throw BadRequestException for invalid table', async () => {
-      await expect(
-        controller.getById('invalid', 'id', 'cfg', mockUser as any),
-      ).rejects.toThrow(BadRequestException);
+      await expect(controller.getById('invalid', 'id', 'cfg', mockUser as any)).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -160,13 +125,7 @@ describe('ConfigController', () => {
 
       await controller.getNetworkMapById('1.0.0', mockUser as any);
 
-      expect(configProxyService.getById).toHaveBeenCalledWith(
-        'network_map',
-        '',
-        '1.0.0',
-        'test-token',
-        'tenant-1',
-      );
+      expect(configProxyService.getById).toHaveBeenCalledWith('network_map', '', '1.0.0', 'test-token', 'tenant-1');
     });
   });
 
@@ -176,24 +135,15 @@ describe('ConfigController', () => {
 
       await controller.create('typology', validTypologyBody, mockUser as any);
 
-      expect(configProxyService.create).toHaveBeenCalledWith(
-        'typology',
-        validTypologyBody,
-        'test-token',
-        'tenant-1',
-      );
+      expect(configProxyService.create).toHaveBeenCalledWith('typology', validTypologyBody, 'test-token', 'tenant-1');
     });
 
     it('should throw Error for invalid table', async () => {
-      await expect(
-        controller.create('invalid', validTypologyBody, mockUser as any),
-      ).rejects.toThrow(BadRequestException);
+      await expect(controller.create('invalid', validTypologyBody, mockUser as any)).rejects.toThrow(BadRequestException);
     });
 
     it('should reject a payload that fails DTO validation before calling the proxy', async () => {
-      await expect(
-        controller.create('rule', { cfg: '1.0.0', config: {} }, mockUser as any),
-      ).rejects.toThrow(BadRequestException);
+      await expect(controller.create('rule', { cfg: '1.0.0', config: {} }, mockUser as any)).rejects.toThrow(BadRequestException);
 
       expect(configProxyService.create).not.toHaveBeenCalled();
     });
@@ -216,15 +166,11 @@ describe('ConfigController', () => {
     });
 
     it('should throw BadRequestException for invalid table', async () => {
-      await expect(
-        controller.update('invalid', 'id', 'cfg', validNetworkMapBody, mockUser as any),
-      ).rejects.toThrow(BadRequestException);
+      await expect(controller.update('invalid', 'id', 'cfg', validNetworkMapBody, mockUser as any)).rejects.toThrow(BadRequestException);
     });
 
     it('should reject a payload that fails DTO validation before calling the proxy', async () => {
-      await expect(
-        controller.update('rule', 'rule-1', '1.0.0', { id: 'rule-1' }, mockUser as any),
-      ).rejects.toThrow(BadRequestException);
+      await expect(controller.update('rule', 'rule-1', '1.0.0', { id: 'rule-1' }, mockUser as any)).rejects.toThrow(BadRequestException);
 
       expect(configProxyService.update).not.toHaveBeenCalled();
     });
@@ -236,19 +182,11 @@ describe('ConfigController', () => {
 
       await controller.delete('rule', 'rule-1', '1.0.0', mockUser as any);
 
-      expect(configProxyService.delete).toHaveBeenCalledWith(
-        'rule',
-        'rule-1',
-        '1.0.0',
-        'test-token',
-        'tenant-1',
-      );
+      expect(configProxyService.delete).toHaveBeenCalledWith('rule', 'rule-1', '1.0.0', 'test-token', 'tenant-1');
     });
 
     it('should throw BadRequestException for invalid table', async () => {
-      await expect(
-        controller.delete('invalid', 'id', 'cfg', mockUser as any),
-      ).rejects.toThrow(BadRequestException);
+      await expect(controller.delete('invalid', 'id', 'cfg', mockUser as any)).rejects.toThrow(BadRequestException);
     });
   });
 
@@ -258,13 +196,7 @@ describe('ConfigController', () => {
 
       await controller.deleteNetworkMap('1.0.0', mockUser as any);
 
-      expect(configProxyService.delete).toHaveBeenCalledWith(
-        'network_map',
-        '',
-        '1.0.0',
-        'test-token',
-        'tenant-1',
-      );
+      expect(configProxyService.delete).toHaveBeenCalledWith('network_map', '', '1.0.0', 'test-token', 'tenant-1');
     });
   });
 
@@ -275,12 +207,7 @@ describe('ConfigController', () => {
 
       await controller.activate('1.0.0', body, mockUser as any);
 
-      expect(configProxyService.activate).toHaveBeenCalledWith(
-        '1.0.0',
-        body,
-        'test-token',
-        'tenant-1',
-      );
+      expect(configProxyService.activate).toHaveBeenCalledWith('1.0.0', body, 'test-token', 'tenant-1');
     });
   });
 
@@ -290,11 +217,7 @@ describe('ConfigController', () => {
 
       await controller.deactivate('1.0.0', mockUser as any);
 
-      expect(configProxyService.deactivate).toHaveBeenCalledWith(
-        '1.0.0',
-        'test-token',
-        'tenant-1',
-      );
+      expect(configProxyService.deactivate).toHaveBeenCalledWith('1.0.0', 'test-token', 'tenant-1');
     });
   });
 
@@ -305,11 +228,7 @@ describe('ConfigController', () => {
 
       await controller.reload(body, mockUser as any);
 
-      expect(configProxyService.reload).toHaveBeenCalledWith(
-        body,
-        'test-token',
-        'tenant-1',
-      );
+      expect(configProxyService.reload).toHaveBeenCalledWith(body, 'test-token', 'tenant-1');
     });
   });
 
@@ -350,14 +269,7 @@ describe('ConfigController', () => {
 
       await controller.updateNetworkMap('1.2.3', body, mockUser as any);
 
-      expect(configProxyService.update).toHaveBeenCalledWith(
-        'network_map',
-        '',
-        '1.2.3',
-        body,
-        'test-token',
-        'tenant-1',
-      );
+      expect(configProxyService.update).toHaveBeenCalledWith('network_map', '', '1.2.3', body, 'test-token', 'tenant-1');
     });
 
     describe('edge cases and error propagation', () => {
@@ -369,17 +281,17 @@ describe('ConfigController', () => {
         expect(configProxyService.list).toHaveBeenCalledWith('rule', '', {}, undefined);
       });
 
-it('should pass null body through reload when provided', async () => {
-      mockConfigProxyService.reload.mockResolvedValue({});
+      it('should pass null body through reload when provided', async () => {
+        mockConfigProxyService.reload.mockResolvedValue({});
 
-      await controller.reload(null as unknown as Record<string, unknown>, mockUser as any);
-      expect(configProxyService.reload).toHaveBeenCalledWith(null, 'test-token', 'tenant-1');
-    });
+        await controller.reload(null as unknown as Record<string, unknown>, mockUser as any);
+        expect(configProxyService.reload).toHaveBeenCalledWith(null, 'test-token', 'tenant-1');
+      });
 
-    it('should reject a null body on create', async () => {
-      await expect(
-        controller.create('typology', null as unknown as Record<string, unknown>, mockUser as any),
-      ).rejects.toThrow(BadRequestException);
+      it('should reject a null body on create', async () => {
+        await expect(controller.create('typology', null as unknown as Record<string, unknown>, mockUser as any)).rejects.toThrow(
+          BadRequestException,
+        );
       });
 
       it('should propagate errors from proxy service calls', async () => {
@@ -389,9 +301,7 @@ it('should pass null body through reload when provided', async () => {
       });
 
       it('should respond with 400 and keep the message for an invalid table', async () => {
-        const error = await controller
-          .list('foobar', {}, mockUser as any)
-          .catch((thrown: unknown) => thrown as HttpException);
+        const error = await controller.list('foobar', {}, mockUser as any).catch((thrown: unknown) => thrown as HttpException);
 
         expect(error).toBeInstanceOf(BadRequestException);
         expect((error as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
@@ -404,12 +314,8 @@ it('should pass null body through reload when provided', async () => {
     // Pins the route that #37 was missing: if @Get('network-map/:cfg') is
     // removed the endpoint 404s again, so assert the metadata directly.
     it('registers GET network-map/:cfg on getNetworkMapById', () => {
-      expect(Reflect.getMetadata(PATH_METADATA, ConfigController.prototype.getNetworkMapById)).toBe(
-        'network-map/:cfg',
-      );
-      expect(Reflect.getMetadata(METHOD_METADATA, ConfigController.prototype.getNetworkMapById)).toBe(
-        RequestMethod.GET,
-      );
+      expect(Reflect.getMetadata(PATH_METADATA, ConfigController.prototype.getNetworkMapById)).toBe('network-map/:cfg');
+      expect(Reflect.getMetadata(METHOD_METADATA, ConfigController.prototype.getNetworkMapById)).toBe(RequestMethod.GET);
     });
   });
 });
