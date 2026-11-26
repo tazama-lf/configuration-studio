@@ -47,12 +47,14 @@ describe('HTTP timeout wiring', () => {
       ],
     }).compile();
 
-    const { httpService: authHttp } = moduleRef.get<AuthService>(AuthService);
-    const { httpService: adminHttp } =
-      moduleRef.get<AdminServiceClient>(AdminServiceClient);
+    // `httpService` is private on both clients; bracket access keeps the
+    // runtime lookup while avoiding a TS2341 error under `tsc --noEmit`
+    // (nest build skips *.spec.ts, so it would otherwise go unnoticed).
+    const authSvc = moduleRef.get<AuthService>(AuthService);
+    const adminSvc = moduleRef.get<AdminServiceClient>(AdminServiceClient);
 
-    expect(authHttp.axiosRef.defaults.timeout).toBe(7777);
-    expect(adminHttp.axiosRef.defaults.timeout).toBe(7777);
+    expect(authSvc['httpService'].axiosRef.defaults.timeout).toBe(7777);
+    expect(adminSvc['httpService'].axiosRef.defaults.timeout).toBe(7777);
 
     await moduleRef.close();
   });

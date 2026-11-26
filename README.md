@@ -154,7 +154,7 @@ DELETE /v1/admin/configuration/{table}/{id}/{cfg}
 | `CERT_PATH_PUBLIC`     | Public certificate path            | _(required)_            |
 | `FUNCTION_NAME`        | Function name                      | _(required)_            |
 | `CORS_ORIGINS`         | Comma-separated allowed browser origins. Unset → only the dev origin (`http://localhost:5176`); set empty → no origins (fail closed). | _(dev origin)_ |
-| `HTTP_TIMEOUT_MS`      | Outbound timeout (ms) for auth-service and admin-service calls. Must be numeric — a non-numeric value aborts startup. | `10000` |
+| `HTTP_TIMEOUT_MS`      | Outbound timeout (ms) for auth-service and admin-service calls. Must be a positive integer; anything else (0, `.5`, `10s`) aborts startup. | `10000` |
 
 ### Frontend
 
@@ -170,7 +170,7 @@ DELETE /v1/admin/configuration/{table}/{id}/{cfg}
 ### Backend
 
 - NestJS 11, `@nestjs/axios`, `@nestjs/config`, `@nestjs/swagger`
-- `@tazama-lf/auth-lib` ^2.1.0, `@tazama-lf/frms-coe-lib` 8.0.0-rc.5
+- `@tazama-lf/auth-lib` ^2.1.0, `@tazama-lf/frms-coe-lib` 8.3.0
 - `jsonwebtoken`, `class-validator`, `class-transformer`
 
 ### Frontend

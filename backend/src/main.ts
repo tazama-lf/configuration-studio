@@ -1,4 +1,3 @@
-/* eslint-disable import/first -- dotenv must be imported and configured before other modules */
 import * as dotenv from 'dotenv';
 
 dotenv.config({ path: '.env' });
@@ -10,7 +9,6 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { isProductionEnv, parseCorsOrigins } from './config/runtime-config';
-/* eslint-enable import/first */
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
@@ -25,7 +23,7 @@ async function bootstrap(): Promise<void> {
   // back together with credentials; restrict to the origins configured via
   // CORS_ORIGINS (comma-separated), default to the dev frontend when unset,
   // and allow none when explicitly set empty. See parseCorsOrigins.
-  const corsOrigins = parseCorsOrigins(configService.get<string>('CORS_ORIGINS'),);
+  const corsOrigins = parseCorsOrigins(configService.get<string>('CORS_ORIGINS'));
 
   /**
    * Security headers. Full helmet in production; in development the CSP is
@@ -41,12 +39,19 @@ async function bootstrap(): Promise<void> {
           scriptSrc: [`'self'`, `'unsafe-inline'`, 'cdn.jsdelivr.net'],
           styleSrc: [`'self'`, `'unsafe-inline'`, 'cdn.jsdelivr.net'],
           imgSrc: [`'self'`, 'data:'],
+          // Helmet defaults this on; Safari honours it even for
+          // http://localhost and then refuses to load Swagger's assets, so
+          // drop it outside production where Swagger is served over http.
+          upgradeInsecureRequests: null,
         },
       }),
     );
   }
   // Never advertise the server framework.
-  app.getHttpAdapter().getInstance().disable('x-powered-by');
+  const httpAdapter = app.getHttpAdapter().getInstance() as {
+    disable: (name: string) => void;
+  };
+  httpAdapter.disable('x-powered-by');
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -84,4 +89,4 @@ async function bootstrap(): Promise<void> {
   await app.listen(port);
   logger.log(`Application is running on: http://localhost:${port}`);
 }
-bootstrap();
+void bootstrap();

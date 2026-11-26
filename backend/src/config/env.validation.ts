@@ -1,11 +1,5 @@
 import { plainToClass } from 'class-transformer';
-import {
-  IsEnum,
-  IsString,
-  IsOptional,
-  Matches,
-  validateSync,
-} from 'class-validator';
+import { IsEnum, IsNotEmpty, IsString, IsOptional, Matches, validateSync } from 'class-validator';
 
 enum NodeEnv {
   DEVELOPMENT = 'development',
@@ -20,18 +14,23 @@ class EnvironmentVariables {
   NODE_ENV: NodeEnv = NodeEnv.DEVELOPMENT;
 
   @IsString()
+  @IsNotEmpty()
   FUNCTION_NAME: string;
 
   @IsString()
+  @IsNotEmpty()
   TAZAMA_AUTH_URL: string;
 
   @IsString()
+  @IsNotEmpty()
   AUTH_PUBLIC_KEY_PATH: string;
 
   @IsString()
+  @IsNotEmpty()
   CERT_PATH_PUBLIC: string;
 
   @IsString()
+  @IsNotEmpty()
   ADMIN_SERVICE_URL: string;
 
   @IsOptional()
@@ -55,9 +54,7 @@ class EnvironmentVariables {
   HTTP_TIMEOUT_MS?: string;
 }
 
-export const validate = (
-  config: Record<string, unknown>,
-): EnvironmentVariables => {
+export const validate = (config: Record<string, unknown>): EnvironmentVariables => {
   const validatedConfig = plainToClass(EnvironmentVariables, config, {
     enableImplicitConversion: true,
   });

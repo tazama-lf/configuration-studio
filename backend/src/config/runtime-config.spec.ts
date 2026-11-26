@@ -14,15 +14,11 @@ describe('parseCorsOrigins', () => {
   });
 
   it('parses a single configured origin', () => {
-    expect(parseCorsOrigins('https://studio.example.com')).toEqual([
-      'https://studio.example.com',
-    ]);
+    expect(parseCorsOrigins('https://studio.example.com')).toEqual(['https://studio.example.com']);
   });
 
   it('trims and drops empty entries from a comma-separated list', () => {
-    expect(
-      parseCorsOrigins('https://a.example.com, https://b.example.com , '),
-    ).toEqual(['https://a.example.com', 'https://b.example.com']);
+    expect(parseCorsOrigins('https://a.example.com, https://b.example.com , ')).toEqual(['https://a.example.com', 'https://b.example.com']);
   });
 });
 

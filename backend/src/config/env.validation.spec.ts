@@ -1,6 +1,16 @@
 import 'reflect-metadata';
 import { validate } from './env.validation';
 
+// Build a copy of env without the given keys, so "missing variable" tests read
+// clearly without leaving an unused destructured binding behind.
+const omit = <T extends object>(obj: T, ...keys: (keyof T)[]): Partial<T> => {
+  const copy: Partial<T> = { ...obj };
+  for (const key of keys) {
+    delete copy[key];
+  }
+  return copy;
+};
+
 describe('env.validation', () => {
   const validEnv = {
     NODE_ENV: 'development',
@@ -50,8 +60,7 @@ describe('env.validation', () => {
     });
 
     it('should accept config without PORT (optional)', () => {
-      const { PORT, ...rest } = validEnv;
-      const result = validate(rest);
+      const result = validate(omit(validEnv, 'PORT'));
       expect(result).toBeDefined();
       expect(result.PORT).toBeUndefined();
     });
@@ -72,21 +81,15 @@ describe('env.validation', () => {
     });
 
     it('should reject a non-numeric HTTP_TIMEOUT_MS so startup fails fast', () => {
-      expect(() => validate({ ...validEnv, HTTP_TIMEOUT_MS: '10s' })).toThrow(
-        /HTTP_TIMEOUT_MS/,
-      );
+      expect(() => validate({ ...validEnv, HTTP_TIMEOUT_MS: '10s' })).toThrow(/HTTP_TIMEOUT_MS/);
     });
 
     it('should reject a decimal HTTP_TIMEOUT_MS (parseInt would yield NaN)', () => {
-      expect(() => validate({ ...validEnv, HTTP_TIMEOUT_MS: '.5' })).toThrow(
-        /HTTP_TIMEOUT_MS/,
-      );
+      expect(() => validate({ ...validEnv, HTTP_TIMEOUT_MS: '.5' })).toThrow(/HTTP_TIMEOUT_MS/);
     });
 
     it('should reject HTTP_TIMEOUT_MS=0 (axios treats the string "0" as a zero-delay timer)', () => {
-      expect(() => validate({ ...validEnv, HTTP_TIMEOUT_MS: '0' })).toThrow(
-        /HTTP_TIMEOUT_MS/,
-      );
+      expect(() => validate({ ...validEnv, HTTP_TIMEOUT_MS: '0' })).toThrow(/HTTP_TIMEOUT_MS/);
     });
 
     it('should accept config with only required fields', () => {
@@ -102,18 +105,23 @@ describe('env.validation', () => {
     });
 
     it('should throw when required env vars are missing (no skipMissingProperties)', () => {
-      const { TAZAMA_AUTH_URL, ...rest } = validEnv;
-      expect(() => validate(rest)).toThrow(/TAZAMA_AUTH_URL/);
+      expect(() => validate(omit(validEnv, 'TAZAMA_AUTH_URL'))).toThrow(/TAZAMA_AUTH_URL/);
+    });
+
+    it('should reject an empty TAZAMA_AUTH_URL (present but blank)', () => {
+      expect(() => validate({ ...validEnv, TAZAMA_AUTH_URL: '' })).toThrow(/TAZAMA_AUTH_URL/);
+    });
+
+    it('should reject an empty ADMIN_SERVICE_URL (present but blank)', () => {
+      expect(() => validate({ ...validEnv, ADMIN_SERVICE_URL: '' })).toThrow(/ADMIN_SERVICE_URL/);
     });
 
     it('should throw when ADMIN_SERVICE_URL is missing', () => {
-      const { ADMIN_SERVICE_URL, ...rest } = validEnv;
-      expect(() => validate(rest)).toThrow(/ADMIN_SERVICE_URL/);
+      expect(() => validate(omit(validEnv, 'ADMIN_SERVICE_URL'))).toThrow(/ADMIN_SERVICE_URL/);
     });
 
     it('should throw when CERT_PATH_PUBLIC is missing', () => {
-      const { CERT_PATH_PUBLIC, ...rest } = validEnv;
-      expect(() => validate(rest)).toThrow(/CERT_PATH_PUBLIC/);
+      expect(() => validate(omit(validEnv, 'CERT_PATH_PUBLIC'))).toThrow(/CERT_PATH_PUBLIC/);
     });
 
     it('should throw on an empty config object', () => {

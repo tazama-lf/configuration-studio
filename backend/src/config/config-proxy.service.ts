@@ -7,18 +7,13 @@ export type ConfigTable = 'network_map' | 'rule' | 'typology';
 export class ConfigProxyService {
   private readonly logger = new Logger(ConfigProxyService.name);
 
-  constructor(private readonly adminServiceClient: AdminServiceClient) { }
+  constructor(private readonly adminServiceClient: AdminServiceClient) {}
 
   /**
    * List records from a config table (paginated)
    * GET /v1/admin/configuration/{table}?limit=&offset=&sort=&order=&filters=
    */
-  async list(
-    table: ConfigTable,
-    token: string,
-    query: Record<string, string | undefined>,
-    tenantId?: string,
-  ): Promise<unknown> {
+  async list(table: ConfigTable, token: string, query: Record<string, string | undefined>, tenantId?: string): Promise<unknown> {
     const queryString = this.buildQueryString(query);
     const path = `/v1/admin/configuration/${table}${queryString}`;
     this.logger.log(`Listing ${table}: ${path}${tenantId ? ` [tenant: ${tenantId}]` : ''}`);
@@ -30,13 +25,7 @@ export class ConfigProxyService {
    * GET /v1/admin/configuration/{table}/{id}/{cfg}  (rule, typology)
    * GET /v1/admin/configuration/{table}/{cfg}        (network_map)
    */
-  async getById(
-    table: ConfigTable,
-    id: string,
-    cfg: string,
-    token: string,
-    tenantId?: string,
-  ): Promise<unknown> {
+  async getById(table: ConfigTable, id: string, cfg: string, token: string, tenantId?: string): Promise<unknown> {
     const path = this.isSingleKeyTable(table)
       ? `/v1/admin/configuration/${table}/${encodeURIComponent(cfg)}`
       : `/v1/admin/configuration/${table}/${encodeURIComponent(id)}/${encodeURIComponent(cfg)}`;
@@ -48,12 +37,7 @@ export class ConfigProxyService {
    * Create a new record
    * POST /v1/admin/configuration/{table}
    */
-  async create(
-    table: ConfigTable,
-    body: unknown,
-    token: string,
-    tenantId?: string,
-  ): Promise<unknown> {
+  async create(table: ConfigTable, body: unknown, token: string, tenantId?: string): Promise<unknown> {
     const path = `/v1/admin/configuration/${table}`;
     this.logger.log(`Creating ${table}${tenantId ? ` [tenant: ${tenantId}]` : ''}`);
     // Inject tenantId into the body so the generated column in the DB has a value
@@ -69,14 +53,7 @@ export class ConfigProxyService {
    * PUT /v1/admin/configuration/{table}/{id}/{cfg}  (rule, typology)
    * PUT /v1/admin/configuration/{table}/{cfg}        (network_map)
    */
-  async update(
-    table: ConfigTable,
-    id: string,
-    cfg: string,
-    body: unknown,
-    token: string,
-    tenantId?: string,
-  ): Promise<unknown> {
+  async update(table: ConfigTable, id: string, cfg: string, body: unknown, token: string, tenantId?: string): Promise<unknown> {
     const path = this.isSingleKeyTable(table)
       ? `/v1/admin/configuration/${table}/${encodeURIComponent(cfg)}`
       : `/v1/admin/configuration/${table}/${encodeURIComponent(id)}/${encodeURIComponent(cfg)}`;
@@ -95,13 +72,7 @@ export class ConfigProxyService {
    * DELETE /v1/admin/configuration/{table}/{id}/{cfg}  (rule, typology)
    * DELETE /v1/admin/configuration/{table}/{cfg}        (network_map)
    */
-  async delete(
-    table: ConfigTable,
-    id: string,
-    cfg: string,
-    token: string,
-    tenantId?: string,
-  ): Promise<unknown> {
+  async delete(table: ConfigTable, id: string, cfg: string, token: string, tenantId?: string): Promise<unknown> {
     const path = this.isSingleKeyTable(table)
       ? `/v1/admin/configuration/${table}/${encodeURIComponent(cfg)}`
       : `/v1/admin/configuration/${table}/${encodeURIComponent(id)}/${encodeURIComponent(cfg)}`;
@@ -113,12 +84,7 @@ export class ConfigProxyService {
    * Activate a network map by cfg
    * POST /v1/admin/configuration/network_map/{cfg}/activate
    */
-  async activate(
-    cfg: string,
-    body: unknown,
-    token: string,
-    tenantId?: string,
-  ): Promise<unknown> {
+  async activate(cfg: string, body: unknown, token: string, tenantId?: string): Promise<unknown> {
     const path = `/v1/admin/configuration/network_map/${encodeURIComponent(cfg)}/activate`;
     this.logger.log(`Activating network_map ${cfg}${tenantId ? ` [tenant: ${tenantId}]` : ''}`);
     return await this.adminServiceClient.executeHttpRequest('POST', path, token, tenantId, body);
@@ -132,11 +98,7 @@ export class ConfigProxyService {
    * otherwise no Content-Type header is sent and the admin-service rejects
    * the request with 415 Unsupported Media Type.
    */
-  async deactivate(
-    cfg: string,
-    token: string,
-    tenantId?: string,
-  ): Promise<unknown> {
+  async deactivate(cfg: string, token: string, tenantId?: string): Promise<unknown> {
     const path = `/v1/admin/configuration/network_map/${encodeURIComponent(cfg)}/deactivate`;
     this.logger.log(`Deactivating network_map ${cfg}${tenantId ? ` [tenant: ${tenantId}]` : ''}`);
     return await this.adminServiceClient.executeHttpRequest('POST', path, token, tenantId, {});
@@ -146,11 +108,7 @@ export class ConfigProxyService {
    * Reload the active network map
    * POST /v1/admin/configuration/network_map/reload
    */
-  async reload(
-    body: unknown,
-    token: string,
-    tenantId?: string,
-  ): Promise<unknown> {
+  async reload(body: unknown, token: string, tenantId?: string): Promise<unknown> {
     const path = `/v1/admin/configuration/network_map/reload`;
     this.logger.log(`Reloading network_map${tenantId ? ` [tenant: ${tenantId}]` : ''}`);
     return await this.adminServiceClient.executeHttpRequest('POST', path, token, tenantId, body);
@@ -210,9 +168,7 @@ export class ConfigProxyService {
       // The preservation read failed (transient admin-service error). A
       // full-replace PUT now would wipe the very fields this mechanism
       // protects, so reject the update and let the client retry.
-      throw new ServiceUnavailableException(
-        'Could not read the stored record to preserve its fields. Please retry.',
-      );
+      throw new ServiceUnavailableException('Could not read the stored record to preserve its fields. Please retry.');
     }
     if (!existing) {
       return;
@@ -251,9 +207,7 @@ export class ConfigProxyService {
       if (error instanceof HttpException && error.getStatus() === HttpStatus.NOT_FOUND) {
         return undefined;
       }
-      this.logger.warn(
-        `Could not read existing ${table} ${id}/${cfg} to preserve omitted fields: ${(error as Error).message}`,
-      );
+      this.logger.warn(`Could not read existing ${table} ${id}/${cfg} to preserve omitted fields: ${(error as Error).message}`);
       // null = the read failed (transient); undefined = confirmed absent.
       return null;
     }

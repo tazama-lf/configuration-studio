@@ -25,10 +25,7 @@ export class AuthController {
     body: LoginDto,
   ): Promise<{ message: string; token: string; expiresIn?: number }> {
     try {
-      const result = await this.authService.login(
-        body.username,
-        body.password,
-      );
+      const result = await this.authService.login(body.username, body.password);
       const response: { message: string; token: string; expiresIn?: number } = {
         message: 'Login successful',
         token: result.token,
@@ -39,20 +36,14 @@ export class AuthController {
       return response;
     } catch (error) {
       if (error instanceof UnauthorizedException) {
-        this.logger.warn(
-          `Authentication failed for user ${body.username}`,
-        );
+        this.logger.warn(`Authentication failed for user ${body.username}`);
         throw error;
       } else if (error instanceof ServiceUnavailableException) {
-        this.logger.error(
-          'Auth service unavailable during login attempt',
-        );
+        this.logger.error('Auth service unavailable during login attempt');
         throw error;
       } else {
         this.logger.error('Unexpected error during login');
-        throw new InternalServerErrorException(
-          'An unexpected error occurred during login',
-        );
+        throw new InternalServerErrorException('An unexpected error occurred during login');
       }
     }
   }

@@ -62,16 +62,16 @@ describe('AdminServiceClient', () => {
 
     it('should throw when ADMIN_SERVICE_URL is not set (no localhost fallback)', () => {
       mockConfigService.get.mockReturnValue(undefined);
-      expect(
-        () => new AdminServiceClient(mockHttpService as any, mockConfigService as any),
-      ).toThrow('ADMIN_SERVICE_URL is not set in environment variables');
+      expect(() => new AdminServiceClient(mockHttpService as any, mockConfigService as any)).toThrow(
+        'ADMIN_SERVICE_URL is not set in environment variables',
+      );
     });
 
     it('should throw when ADMIN_SERVICE_URL is null (no localhost fallback)', () => {
       mockConfigService.get.mockReturnValue(null);
-      expect(
-        () => new AdminServiceClient(mockHttpService as any, mockConfigService as any),
-      ).toThrow('ADMIN_SERVICE_URL is not set in environment variables');
+      expect(() => new AdminServiceClient(mockHttpService as any, mockConfigService as any)).toThrow(
+        'ADMIN_SERVICE_URL is not set in environment variables',
+      );
     });
 
     it('should include X-Tenant-Id header when tenantId is provided', async () => {
@@ -80,10 +80,9 @@ describe('AdminServiceClient', () => {
 
       await client.executeHttpRequest('GET', '/test', 'token', 'tenant-123');
 
-      expect(mockHttpService.get).toHaveBeenCalledWith(
-        'http://admin:5100/test',
-        { headers: { Authorization: 'Bearer token', 'X-Tenant-Id': 'tenant-123' } },
-      );
+      expect(mockHttpService.get).toHaveBeenCalledWith('http://admin:5100/test', {
+        headers: { 'Authorization': 'Bearer token', 'X-Tenant-Id': 'tenant-123' },
+      });
     });
 
     it('should not include X-Tenant-Id header when tenantId is not provided', async () => {
@@ -92,50 +91,35 @@ describe('AdminServiceClient', () => {
 
       await client.executeHttpRequest('GET', '/test', 'token');
 
-      expect(mockHttpService.get).toHaveBeenCalledWith(
-        'http://admin:5100/test',
-        { headers: { Authorization: 'Bearer token' } },
-      );
+      expect(mockHttpService.get).toHaveBeenCalledWith('http://admin:5100/test', { headers: { Authorization: 'Bearer token' } });
     });
   });
 
   describe('executeHttpRequest - GET', () => {
     it('should make GET request and return response data', async () => {
       mockConfigService.get.mockReturnValue('http://admin:5100');
-      mockHttpService.get.mockReturnValue(
-        of({ data: { result: 'success' }, status: 200 }),
-      );
+      mockHttpService.get.mockReturnValue(of({ data: { result: 'success' }, status: 200 }));
 
       const result = await client.executeHttpRequest('GET', '/test', 'token');
 
       expect(result).toEqual({ result: 'success' });
-      expect(mockHttpService.get).toHaveBeenCalledWith(
-        'http://admin:5100/test',
-        { headers: { Authorization: 'Bearer token' } },
-      );
+      expect(mockHttpService.get).toHaveBeenCalledWith('http://admin:5100/test', { headers: { Authorization: 'Bearer token' } });
     });
 
     it('should not add Bearer prefix if token already has it', async () => {
       mockConfigService.get.mockReturnValue('http://admin:5100');
-      mockHttpService.get.mockReturnValue(
-        of({ data: {}, status: 200 }),
-      );
+      mockHttpService.get.mockReturnValue(of({ data: {}, status: 200 }));
 
       await client.executeHttpRequest('GET', '/test', 'Bearer existing-token');
 
-      expect(mockHttpService.get).toHaveBeenCalledWith(
-        'http://admin:5100/test',
-        { headers: { Authorization: 'Bearer existing-token' } },
-      );
+      expect(mockHttpService.get).toHaveBeenCalledWith('http://admin:5100/test', { headers: { Authorization: 'Bearer existing-token' } });
     });
   });
 
   describe('executeHttpRequest - POST', () => {
     it('should make POST request with body and return response data', async () => {
       mockConfigService.get.mockReturnValue('http://admin:5100');
-      mockHttpService.post.mockReturnValue(
-        of({ data: { id: 1 }, status: 201 }),
-      );
+      mockHttpService.post.mockReturnValue(of({ data: { id: 1 }, status: 201 }));
 
       const result = await client.executeHttpRequest('POST', '/create', 'token', undefined, { name: 'test' });
 
@@ -149,9 +133,7 @@ describe('AdminServiceClient', () => {
 
     it('should make POST request with tenantId header and body', async () => {
       mockConfigService.get.mockReturnValue('http://admin:5100');
-      mockHttpService.post.mockReturnValue(
-        of({ data: { id: 1 }, status: 201 }),
-      );
+      mockHttpService.post.mockReturnValue(of({ data: { id: 1 }, status: 201 }));
 
       const result = await client.executeHttpRequest('POST', '/create', 'token', 'tenant-1', { name: 'test' });
 
@@ -159,7 +141,7 @@ describe('AdminServiceClient', () => {
       expect(mockHttpService.post).toHaveBeenCalledWith(
         'http://admin:5100/create',
         { name: 'test' },
-        { headers: { Authorization: 'Bearer token', 'X-Tenant-Id': 'tenant-1' } },
+        { headers: { 'Authorization': 'Bearer token', 'X-Tenant-Id': 'tenant-1' } },
       );
     });
   });
@@ -167,9 +149,7 @@ describe('AdminServiceClient', () => {
   describe('executeHttpRequest - PUT', () => {
     it('should make PUT request with body and return response data', async () => {
       mockConfigService.get.mockReturnValue('http://admin:5100');
-      mockHttpService.put.mockReturnValue(
-        of({ data: { updated: true }, status: 200 }),
-      );
+      mockHttpService.put.mockReturnValue(of({ data: { updated: true }, status: 200 }));
 
       const result = await client.executeHttpRequest('PUT', '/update/1', 'token', undefined, { name: 'updated' });
 
@@ -183,16 +163,14 @@ describe('AdminServiceClient', () => {
 
     it('should make PUT request with tenantId header and body', async () => {
       mockConfigService.get.mockReturnValue('http://admin:5100');
-      mockHttpService.put.mockReturnValue(
-        of({ data: { updated: true }, status: 200 }),
-      );
+      mockHttpService.put.mockReturnValue(of({ data: { updated: true }, status: 200 }));
 
       await client.executeHttpRequest('PUT', '/update/1', 'token', 'tenant-1', { name: 'updated' });
 
       expect(mockHttpService.put).toHaveBeenCalledWith(
         'http://admin:5100/update/1',
         { name: 'updated' },
-        { headers: { Authorization: 'Bearer token', 'X-Tenant-Id': 'tenant-1' } },
+        { headers: { 'Authorization': 'Bearer token', 'X-Tenant-Id': 'tenant-1' } },
       );
     });
   });
@@ -200,9 +178,7 @@ describe('AdminServiceClient', () => {
   describe('executeHttpRequest - PATCH', () => {
     it('should make PATCH request with body and return response data', async () => {
       mockConfigService.get.mockReturnValue('http://admin:5100');
-      mockHttpService.patch.mockReturnValue(
-        of({ data: { patched: true }, status: 200 }),
-      );
+      mockHttpService.patch.mockReturnValue(of({ data: { patched: true }, status: 200 }));
 
       const result = await client.executeHttpRequest('PATCH', '/patch/1', 'token', undefined, { status: 'published' });
 
@@ -216,16 +192,14 @@ describe('AdminServiceClient', () => {
 
     it('should make PATCH request with tenantId header and body', async () => {
       mockConfigService.get.mockReturnValue('http://admin:5100');
-      mockHttpService.patch.mockReturnValue(
-        of({ data: { patched: true }, status: 200 }),
-      );
+      mockHttpService.patch.mockReturnValue(of({ data: { patched: true }, status: 200 }));
 
       await client.executeHttpRequest('PATCH', '/patch/1', 'token', 'tenant-1', { status: 'published' });
 
       expect(mockHttpService.patch).toHaveBeenCalledWith(
         'http://admin:5100/patch/1',
         { status: 'published' },
-        { headers: { Authorization: 'Bearer token', 'X-Tenant-Id': 'tenant-1' } },
+        { headers: { 'Authorization': 'Bearer token', 'X-Tenant-Id': 'tenant-1' } },
       );
     });
   });
@@ -233,17 +207,12 @@ describe('AdminServiceClient', () => {
   describe('executeHttpRequest - DELETE', () => {
     it('should make DELETE request and return response data', async () => {
       mockConfigService.get.mockReturnValue('http://admin:5100');
-      mockHttpService.delete.mockReturnValue(
-        of({ data: { deleted: true }, status: 200 }),
-      );
+      mockHttpService.delete.mockReturnValue(of({ data: { deleted: true }, status: 200 }));
 
       const result = await client.executeHttpRequest('DELETE', '/delete/1', 'token');
 
       expect(result).toEqual({ deleted: true });
-      expect(mockHttpService.delete).toHaveBeenCalledWith(
-        'http://admin:5100/delete/1',
-        { headers: { Authorization: 'Bearer token' } },
-      );
+      expect(mockHttpService.delete).toHaveBeenCalledWith('http://admin:5100/delete/1', { headers: { Authorization: 'Bearer token' } });
     });
   });
 
@@ -257,9 +226,7 @@ describe('AdminServiceClient', () => {
         })),
       );
 
-      await expect(client.executeHttpRequest('GET', '/test', 'token')).rejects.toThrow(
-        HttpException,
-      );
+      await expect(client.executeHttpRequest('GET', '/test', 'token')).rejects.toThrow(HttpException);
     });
 
     it('should pass through error message from admin service', async () => {

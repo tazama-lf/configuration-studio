@@ -1,9 +1,5 @@
 import { Test, type TestingModule } from '@nestjs/testing';
-import {
-  UnauthorizedException,
-  ServiceUnavailableException,
-  InternalServerErrorException,
-} from '@nestjs/common';
+import { UnauthorizedException, ServiceUnavailableException, InternalServerErrorException } from '@nestjs/common';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 
@@ -73,39 +69,27 @@ describe('AuthController', () => {
     });
 
     it('should rethrow UnauthorizedException', async () => {
-      mockAuthService.login.mockRejectedValue(
-        new UnauthorizedException('Invalid credentials'),
-      );
+      mockAuthService.login.mockRejectedValue(new UnauthorizedException('Invalid credentials'));
 
-      await expect(controller.login(validBody)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(controller.login(validBody)).rejects.toThrow(UnauthorizedException);
     });
 
     it('should rethrow ServiceUnavailableException', async () => {
-      mockAuthService.login.mockRejectedValue(
-        new ServiceUnavailableException('Service unavailable'),
-      );
+      mockAuthService.login.mockRejectedValue(new ServiceUnavailableException('Service unavailable'));
 
-      await expect(controller.login(validBody)).rejects.toThrow(
-        ServiceUnavailableException,
-      );
+      await expect(controller.login(validBody)).rejects.toThrow(ServiceUnavailableException);
     });
 
     it('should throw InternalServerErrorException for unknown errors', async () => {
       mockAuthService.login.mockRejectedValue(new Error('Unknown error'));
 
-      await expect(controller.login(validBody)).rejects.toThrow(
-        InternalServerErrorException,
-      );
+      await expect(controller.login(validBody)).rejects.toThrow(InternalServerErrorException);
     });
 
     it('should throw InternalServerErrorException for non-Error objects', async () => {
       mockAuthService.login.mockRejectedValue('string error');
 
-      await expect(controller.login(validBody)).rejects.toThrow(
-        InternalServerErrorException,
-      );
+      await expect(controller.login(validBody)).rejects.toThrow(InternalServerErrorException);
     });
 
     it('should call authService.login with username and password', async () => {
@@ -117,10 +101,7 @@ describe('AuthController', () => {
 
       await controller.login(validBody);
 
-      expect(authService.login).toHaveBeenCalledWith(
-        'test@example.com',
-        'password123',
-      );
+      expect(authService.login).toHaveBeenCalledWith('test@example.com', 'password123');
     });
 
     it('should rethrow UnauthorizedException with correct message', async () => {
@@ -163,17 +144,13 @@ describe('AuthController', () => {
     it('should throw InternalServerErrorException for null error', async () => {
       mockAuthService.login.mockRejectedValue(null);
 
-      await expect(controller.login(validBody)).rejects.toThrow(
-        InternalServerErrorException,
-      );
+      await expect(controller.login(validBody)).rejects.toThrow(InternalServerErrorException);
     });
 
     it('should throw InternalServerErrorException for object error', async () => {
       mockAuthService.login.mockRejectedValue({ code: 500 });
 
-      await expect(controller.login(validBody)).rejects.toThrow(
-        InternalServerErrorException,
-      );
+      await expect(controller.login(validBody)).rejects.toThrow(InternalServerErrorException);
     });
 
     it('should log warn when UnauthorizedException is thrown', async () => {
