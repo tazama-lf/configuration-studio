@@ -92,6 +92,17 @@ describe('env.validation', () => {
       expect(() => validate({ ...validEnv, HTTP_TIMEOUT_MS: '0' })).toThrow(/HTTP_TIMEOUT_MS/);
     });
 
+    it('should accept the maximum allowed HTTP_TIMEOUT_MS (999999)', () => {
+      const result = validate({ ...validEnv, HTTP_TIMEOUT_MS: '999999' });
+      expect(result.HTTP_TIMEOUT_MS).toBe('999999');
+    });
+
+    it('should reject an HTTP_TIMEOUT_MS above the Node timer limit', () => {
+      // 7 digits; 3000000000 > 2147483647 overflows setTimeout and aborts requests
+      expect(() => validate({ ...validEnv, HTTP_TIMEOUT_MS: '3000000000' })).toThrow(/HTTP_TIMEOUT_MS/);
+      expect(() => validate({ ...validEnv, HTTP_TIMEOUT_MS: '1000000' })).toThrow(/HTTP_TIMEOUT_MS/);
+    });
+
     it('should accept config with only required fields', () => {
       const result = validate({
         NODE_ENV: 'development',

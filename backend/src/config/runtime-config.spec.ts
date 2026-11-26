@@ -20,6 +20,12 @@ describe('parseCorsOrigins', () => {
   it('trims and drops empty entries from a comma-separated list', () => {
     expect(parseCorsOrigins('https://a.example.com, https://b.example.com , ')).toEqual(['https://a.example.com', 'https://b.example.com']);
   });
+
+  it('strips trailing slashes so they match the browser Origin header', () => {
+    expect(parseCorsOrigins('http://app.example/')).toEqual(['http://app.example']);
+    expect(parseCorsOrigins('http://app.example///')).toEqual(['http://app.example']);
+    expect(parseCorsOrigins('http://a.example/, http://b.example/')).toEqual(['http://a.example', 'http://b.example']);
+  });
 });
 
 describe('isProductionEnv', () => {

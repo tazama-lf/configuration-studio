@@ -48,10 +48,12 @@ class EnvironmentVariables {
   // axios. Non-numeric ("10s") and decimals (".5") become NaN/no timeout, and
   // "0" is worse: axios parses the string '0' and starts a zero-delay timer,
   // so every auth/admin request aborts immediately ("timeout of 0ms
-  // exceeded"). Require a positive integer so these fail fast at startup.
+  // exceeded"). Cap at 6 digits (~16 minutes): values above Node's timer limit
+  // of 2147483647 overflow and fire after ~1ms, aborting every request. So
+  // require a positive integer up to 999999 and fail fast at startup otherwise.
   @IsOptional()
-  @Matches(/^[1-9]\d*$/, {
-    message: 'HTTP_TIMEOUT_MS must be a positive integer (milliseconds)',
+  @Matches(/^[1-9]\d{0,5}$/, {
+    message: 'HTTP_TIMEOUT_MS must be a positive integer in milliseconds (max 999999, ~16 minutes)',
   })
   HTTP_TIMEOUT_MS?: string;
 }

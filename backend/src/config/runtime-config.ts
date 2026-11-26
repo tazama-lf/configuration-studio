@@ -14,11 +14,15 @@ export const DEFAULT_DEV_ORIGIN = 'http://localhost:5176';
  * - unset  -> the dev frontend origin only (fail-safe for local development)
  * - set    -> exactly the listed (trimmed, non-empty) origins
  * - empty  -> no origins allowed (fail closed, not fail open)
+ *
+ * Trailing slashes are stripped: a browser's Origin header never has one
+ * (`http://app.example`), so `http://app.example/` would otherwise never
+ * match and the app would silently reject its own frontend.
  */
 export const parseCorsOrigins = (raw: string | undefined): string[] =>
   (raw ?? DEFAULT_DEV_ORIGIN)
     .split(',')
-    .map((origin) => origin.trim())
+    .map((origin) => origin.trim().replace(/\/+$/, ''))
     .filter((origin) => origin.length > 0);
 
 /**
