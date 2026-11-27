@@ -71,6 +71,29 @@ describe('ConfigClaimsGuard', () => {
       ).toBe(true);
       expect(validateTokenAndClaims).toHaveBeenCalledWith('tok', ['ACTIVATE_CONFIG']);
     });
+
+    it('still applies the activate claim list when the path has a trailing slash', () => {
+      // A sloppy client (or reverse proxy) can add a trailing slash; without
+      // normalisation it fell through to the write-claim class and skipped
+      // the activate permission.
+      jest.mocked(validateTokenAndClaims).mockReturnValue({} as never);
+      expect(() =>
+        guard.canActivate(
+          makeContext('POST', '/config/network-map/1.0.0/activate/', 'tok'),
+        ),
+      ).toThrow(ForbiddenException);
+      expect(validateTokenAndClaims).toHaveBeenCalledWith('tok', ['ACTIVATE_CONFIG']);
+    });
+
+    it('ignores a query string when classifying the route', () => {
+      jest.mocked(validateTokenAndClaims).mockReturnValue({ ACTIVATE_CONFIG: true } as never);
+      expect(
+        guard.canActivate(
+          makeContext('POST', '/config/network-map/reload?mode=cascade', 'tok'),
+        ),
+      ).toBe(true);
+      expect(validateTokenAndClaims).toHaveBeenCalledWith('tok', ['ACTIVATE_CONFIG']);
+    });
   });
 });
 

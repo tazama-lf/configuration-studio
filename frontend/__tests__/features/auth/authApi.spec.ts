@@ -108,6 +108,30 @@ describe('AuthApiService', () => {
     });
   });
 
+  describe('getTokenExpiry', () => {
+    it('returns the outer token expiry', () => {
+      const token = makeToken({ sub: 'u', exp: 2_000_000_000 });
+      expect(AuthApiService.getTokenExpiry(token)).toBe(2_000_000_000);
+    });
+
+    it('uses the outer exp even when the inner token would expire later', () => {
+      // The inner token outliving the outer one must not extend the session.
+      const innerToken = makeToken({ sub: 'u', exp: 9_999_999_999 });
+      const token = makeToken({ tokenString: innerToken, exp: 1_000_000_000 });
+      expect(AuthApiService.getTokenExpiry(token)).toBe(1_000_000_000);
+    });
+
+    it('falls back to the inner exp when the outer token has none', () => {
+      const innerToken = makeToken({ sub: 'u', exp: 1_700_000_000 });
+      const token = makeToken({ tokenString: innerToken });
+      expect(AuthApiService.getTokenExpiry(token)).toBe(1_700_000_000);
+    });
+
+    it('returns null when the token carries no exp', () => {
+      expect(AuthApiService.getTokenExpiry(makeToken({ sub: 'u' }))).toBeNull();
+    });
+  });
+
   describe('login', () => {
     beforeEach(() => {
       localStorage.clear();

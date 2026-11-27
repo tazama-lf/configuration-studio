@@ -236,6 +236,12 @@ const NetworkMapPage: React.FC = () => {
       showError("Validation error", "Messages must be a JSON array (e.g. [] or [{ id: 'x', cfg: '1.0.0', ... }])");
       return;
     }
+    // A token without a tenant must not fall back to a "default" tenant —
+    // the write would target the wrong tenant's data (issue #43).
+    if (missingTenant) {
+      showError("Validation error", "Your session has no tenant context. Please log in again.");
+      return;
+    }
     // Busy state covers the active-map lookup so a double-click cannot
     // start a second save while the check is in flight.
     setActionLoading(true);

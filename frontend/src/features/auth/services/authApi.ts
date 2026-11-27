@@ -172,9 +172,12 @@ export class AuthApiService {
   }
 
   /**
-   * Extract the token's expiry (seconds since epoch), preferring the inner
-   * token's exp when the outer token wraps one. Returns null when the token
-   * carries no exp claim.
+   * Extract the token's expiry (seconds since epoch) — the expiry that
+   * governs this session is the OUTER token's `exp`, not the wrapped inner
+   * token's. The inner token can legitimately outlive it, so preferring the
+   * inner value restored sessions for up to the inner lifetime after the
+   * outer token had already expired. Returns null when the token carries no
+   * exp claim.
    */
   static getTokenExpiry(token: string): number | null {
     try {
@@ -183,8 +186,13 @@ export class AuthApiService {
         return null;
       }
       const payload = JSON.parse(AuthApiService.decodeBase64Url(base64Url)) as JWTPayload;
+      // Preserve the original behaviour for tokens that only expose an inner
+      // exp; otherwise trust the outer exp that actually gates the session.
+      if (typeof payload.exp === 'number') {
+        return payload.exp;
+      }
       const innerPayload = AuthApiService.parseInnerToken(payload);
-      return innerPayload.exp ?? payload.exp ?? null;
+      return innerPayload.exp ?? null;
     } catch {
       return null;
     }

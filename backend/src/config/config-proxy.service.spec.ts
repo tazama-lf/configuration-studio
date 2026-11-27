@@ -388,7 +388,7 @@ describe('ConfigProxyService', () => {
       expect(sentBody().creDtTm).toBe('stored-creation-time');
     });
 
-    it('should not read the stored record when a network map update supplies creDtTm', async () => {
+    it('reads the stored record and ignores a caller-supplied creDtTm for a network map update', async () => {
       mockAdminServiceClient.executeHttpRequest.mockResolvedValue({});
 
       await service.update(
@@ -401,7 +401,11 @@ describe('ConfigProxyService', () => {
       );
 
       const methods = mockAdminServiceClient.executeHttpRequest.mock.calls.map((c) => c[0]);
-      expect(methods).toEqual(['PUT']);
+      // Issue #42: creDtTm is audit data taken from the stored record, so the
+      // store is always read and the caller-supplied value is dropped when the
+      // store has none — it is never sent back verbatim.
+      expect(methods).toEqual(['GET', 'PUT']);
+      expect(sentBody()).not.toHaveProperty('creDtTm');
     });
 
     it('rejects the update (503) when the preservation read fails, so creDtTm is not wiped', async () => {

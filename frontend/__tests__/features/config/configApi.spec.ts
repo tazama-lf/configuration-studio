@@ -96,7 +96,7 @@ describe('ConfigApiService', () => {
         ok: false,
         status: 500,
         json: async () => { throw new Error('parse error'); },
-        text: async () => JSON.stringify({ throw new Error('parse error'); },),
+        text: async () => { throw new Error('parse error'); },
       }) as unknown as typeof fetch;
 
       await expect(configApi.list('rule', { limit: 20, offset: 0 })).rejects.toThrow(
@@ -227,7 +227,7 @@ describe('ConfigApiService', () => {
         ok: true,
         status: 204,
         json: async () => { throw new Error('no body'); },
-        text: async () => JSON.stringify({ throw new Error('no body'); },),
+        text: async () => { throw new Error('no body'); },
       }) as unknown as typeof fetch;
 
       const result = await configApi.delete('rule', 'testid', '1.0.0');
@@ -277,7 +277,7 @@ describe('ConfigApiService', () => {
         ok: false,
         status: 500,
         json: async () => { throw new Error('parse error'); },
-        text: async () => JSON.stringify({ throw new Error('parse error'); },),
+        text: async () => { throw new Error('parse error'); },
       }) as unknown as typeof fetch;
 
       await expect(configApi.delete('rule', 'testid', '1.0.0')).rejects.toThrow(
@@ -369,6 +369,45 @@ describe('ConfigApiService', () => {
       await configApi.list('rule', { limit: 20, offset: 0 });
       const headers = (global.fetch as jest.Mock).mock.calls[0][1].headers;
       expect(headers.Authorization).toBe('Bearer test-token');
+    });
+  });
+
+  describe('listAll', () => {
+    it('keeps paging until every record is loaded', async () => {
+      const page1 = {
+        data: Array.from({ length: 100 }, (_, i) => ({ id: `${i}` })),
+        meta: { total: 150, limit: 100, offset: 0 },
+      };
+      const page2 = {
+        data: Array.from({ length: 50 }, (_, i) => ({ id: `${100 + i}` })),
+        meta: { total: 150, limit: 100, offset: 100 },
+      };
+      const asResponse = (body: unknown): Response =>
+        ({ ok: true, status: 200, json: async () => body, text: async () => JSON.stringify(body) }) as unknown as Response;
+      global.fetch = jest
+        .fn()
+        .mockResolvedValueOnce(asResponse(page1))
+        .mockResolvedValueOnce(asResponse(page2)) as unknown as typeof fetch;
+
+      const result = await configApi.listAll('rule');
+      expect(result).toHaveLength(150);
+      expect(global.fetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('throws instead of silently truncating past the page ceiling', async () => {
+      const endless = {
+        data: Array.from({ length: 100 }, (_, i) => ({ id: `${i}` })),
+        // More rows than MAX_PAGES (100) * PAGE_SIZE (100) can return.
+        meta: { total: 1_000_000, limit: 100, offset: 0 },
+      };
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => endless,
+        text: async () => JSON.stringify(endless),
+      }) as unknown as typeof fetch;
+
+      await expect(configApi.listAll('rule')).rejects.toThrow(/more than 10000 rows/);
     });
   });
 });

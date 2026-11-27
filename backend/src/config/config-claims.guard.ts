@@ -8,6 +8,9 @@ import { validateTokenAndClaims } from '@tazama-lf/auth-lib';
 import { ConfigClaimsService } from './config-claims.service';
 import type { AuthenticatedRequest } from '../auth/auth.types';
 
+/** Trailing path segments that map to the activate permission class. */
+const ACTIVATE_ACTIONS = new Set(['activate', 'deactivate', 'reload']);
+
 /**
  * Route-class-aware claim gating for the config endpoints.
  *
@@ -49,14 +52,25 @@ export class ConfigClaimsGuard implements CanActivate {
   /**
    * Pick the env claim list for the route. The activate/deactivate/reload
    * endpoints are POSTs but are a distinct permission class, so they are
-   * matched by path before falling back to the method-based classes.
+   * matched by their trailing path segment before falling back to the
+   * method-based classes. Trailing slashes (`.../activate/`) and query
+   * strings are tolerated so a sloppy client cannot fall through to the
+   * weaker write-claim class and skip the activate permission.
    */
   private requiredClaimsFor(
     context: ExecutionContext,
     request: AuthenticatedRequest,
   ): string[] {
-    const path = request.path ?? '';
-    if (/(activate|deactivate|reload)$/.test(path)) {
+    const lastSegment = (request.path ?? '')
+      .split('?')[0]
+      .replace(/\/+$/, '')
+      .split('/')
+      .pop();
+    if (
+      request.method === 'POST' &&
+      lastSegment !== undefined &&
+      ACTIVATE_ACTIONS.has(lastSegment)
+    ) {
       return this.configClaims.activateClaims;
     }
     switch (request.method) {

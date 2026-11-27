@@ -206,10 +206,11 @@ export class ConfigProxyService {
     if (!this.isPlainRecord(body)) {
       return;
     }
-    if (body.creDtTm !== undefined) {
-      return;
-    }
 
+    // creDtTm is audit data: it is always taken from the stored record and
+    // never from the caller. We therefore read the stored record even when the
+    // caller supplied a value — a supplied value is overwritten (store has one)
+    // or dropped (store has none) below, so it can never be forged.
     const existing = await this.fetchExistingRecord(table, id, cfg, token, tenantId);
     if (existing === null) {
       throw new ServiceUnavailableException(

@@ -123,11 +123,16 @@ export class ConfigApiService {
       all.push(...result.data);
       const total = result.meta?.total ?? all.length;
       if (all.length >= total || result.data.length < PAGE_SIZE) {
-        break;
+        return all;
       }
       offset += PAGE_SIZE;
     }
-    return all;
+    // We exhausted the page ceiling while the API still reports more rows.
+    // Returning the partial list here silently hid records from every
+    // dropdown, so surface it instead of pretending the load succeeded.
+    throw new Error(
+      `Unable to load all ${table} records: more than ${MAX_PAGES * PAGE_SIZE} rows available.`,
+    );
   }
 
   async getById<T>(

@@ -60,11 +60,26 @@ async function bootstrap(): Promise<void> {
    * Behind a load balancer, Express reports the proxy's address as the
    * client IP unless `trust proxy` is configured for the deployment
    * topology (TRUST_PROXY: 'true', hop count, IP/subnet, or a list).
+   * Express expects a real boolean for the 'true'/'false' cases — passing
+   * the string "true" (via Number("true") === NaN) makes it throw — so map
+   * the boolean words explicitly and only treat other values as a hop
+   * count when they are genuinely numeric (otherwise keep the raw string,
+   * which covers IP/subnet/list values).
    */
   const trustProxy = configService.get<string>('TRUST_PROXY');
-  if (trustProxy !== undefined) {
-    const hops = Number(trustProxy);
-    app.getHttpAdapter().getInstance().set('trust proxy', Number.isNaN(hops) ? trustProxy : hops);
+  if (trustProxy !== undefined && trustProxy.trim().length > 0) {
+    const value = trustProxy.trim();
+    let setting: boolean | number | string;
+    if (value.toLowerCase() === 'true') {
+      setting = true;
+    } else if (value.toLowerCase() === 'false') {
+      setting = false;
+    } else if (/^\d+$/.test(value)) {
+      setting = Number(value);
+    } else {
+      setting = value;
+    }
+    app.getHttpAdapter().getInstance().set('trust proxy', setting);
   }
 
   app.useGlobalPipes(
