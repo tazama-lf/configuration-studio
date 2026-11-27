@@ -1,13 +1,5 @@
 import { Reflector } from '@nestjs/core';
-import {
-  RequireClaims,
-  RequireAnyClaims,
-  Public,
-  RequireClaim,
-  CLAIMS_KEY,
-  IS_PUBLIC_KEY,
-  ANY_CLAIMS_KEY,
-} from './auth.decorator';
+import { RequireClaims, RequireAnyClaims, Public, RequireClaim, CLAIMS_KEY, IS_PUBLIC_KEY, ANY_CLAIMS_KEY } from './auth.decorator';
 
 describe('Auth Decorators', () => {
   describe('CLAIMS_KEY', () => {

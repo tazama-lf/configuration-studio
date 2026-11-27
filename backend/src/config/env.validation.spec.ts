@@ -1,6 +1,16 @@
 import 'reflect-metadata';
 import { validate } from './env.validation';
 
+// Build a copy of env without the given keys, so "missing variable" tests read
+// clearly without leaving an unused destructured binding behind.
+const omit = <T extends object>(obj: T, ...keys: (keyof T)[]): Partial<T> => {
+  const copy: Partial<T> = { ...obj };
+  for (const key of keys) {
+    delete copy[key];
+  }
+  return copy;
+};
+
 describe('env.validation', () => {
   const validEnv = {
     NODE_ENV: 'development',
@@ -9,7 +19,7 @@ describe('env.validation', () => {
     AUTH_PUBLIC_KEY_PATH: '/path/to/key',
     CERT_PATH_PUBLIC: '/path/to/cert',
     ADMIN_SERVICE_URL: 'http://admin:5100',
-    PORT: '3011',
+    PORT: '3015',
   };
 
   describe('validate', () => {
@@ -50,8 +60,7 @@ describe('env.validation', () => {
     });
 
     it('should accept config without PORT (optional)', () => {
-      const { PORT, ...rest } = validEnv;
-      const result = validate(rest);
+      const result = validate(omit(validEnv, 'PORT'));
       expect(result).toBeDefined();
       expect(result.PORT).toBeUndefined();
     });
@@ -59,6 +68,39 @@ describe('env.validation', () => {
     it('should accept PORT as string', () => {
       const result = validate({ ...validEnv, PORT: '4000' });
       expect(result.PORT).toBe('4000');
+    });
+
+    it('should accept a numeric HTTP_TIMEOUT_MS', () => {
+      const result = validate({ ...validEnv, HTTP_TIMEOUT_MS: '10000' });
+      expect(result.HTTP_TIMEOUT_MS).toBe('10000');
+    });
+
+    it('should accept the smallest positive HTTP_TIMEOUT_MS', () => {
+      const result = validate({ ...validEnv, HTTP_TIMEOUT_MS: '1' });
+      expect(result.HTTP_TIMEOUT_MS).toBe('1');
+    });
+
+    it('should reject a non-numeric HTTP_TIMEOUT_MS so startup fails fast', () => {
+      expect(() => validate({ ...validEnv, HTTP_TIMEOUT_MS: '10s' })).toThrow(/HTTP_TIMEOUT_MS/);
+    });
+
+    it('should reject a decimal HTTP_TIMEOUT_MS (parseInt would yield NaN)', () => {
+      expect(() => validate({ ...validEnv, HTTP_TIMEOUT_MS: '.5' })).toThrow(/HTTP_TIMEOUT_MS/);
+    });
+
+    it('should reject HTTP_TIMEOUT_MS=0 (axios treats the string "0" as a zero-delay timer)', () => {
+      expect(() => validate({ ...validEnv, HTTP_TIMEOUT_MS: '0' })).toThrow(/HTTP_TIMEOUT_MS/);
+    });
+
+    it('should accept the maximum allowed HTTP_TIMEOUT_MS (999999)', () => {
+      const result = validate({ ...validEnv, HTTP_TIMEOUT_MS: '999999' });
+      expect(result.HTTP_TIMEOUT_MS).toBe('999999');
+    });
+
+    it('should reject an HTTP_TIMEOUT_MS above the Node timer limit', () => {
+      // 7 digits; 3000000000 > 2147483647 overflows setTimeout and aborts requests
+      expect(() => validate({ ...validEnv, HTTP_TIMEOUT_MS: '3000000000' })).toThrow(/HTTP_TIMEOUT_MS/);
+      expect(() => validate({ ...validEnv, HTTP_TIMEOUT_MS: '1000000' })).toThrow(/HTTP_TIMEOUT_MS/);
     });
 
     it('should accept config with only required fields', () => {
@@ -73,9 +115,35 @@ describe('env.validation', () => {
       expect(result).toBeDefined();
     });
 
-    it('should handle empty object with skipMissingProperties', () => {
-      const result = validate({});
-      expect(result).toBeDefined();
+    it('should throw when required env vars are missing (no skipMissingProperties)', () => {
+      expect(() => validate(omit(validEnv, 'TAZAMA_AUTH_URL'))).toThrow(/TAZAMA_AUTH_URL/);
+    });
+
+    it('should reject an empty TAZAMA_AUTH_URL (present but blank)', () => {
+      expect(() => validate({ ...validEnv, TAZAMA_AUTH_URL: '' })).toThrow(/TAZAMA_AUTH_URL/);
+    });
+
+    it('should reject an empty ADMIN_SERVICE_URL (present but blank)', () => {
+      expect(() => validate({ ...validEnv, ADMIN_SERVICE_URL: '' })).toThrow(/ADMIN_SERVICE_URL/);
+    });
+
+    it.each(['FUNCTION_NAME', 'TAZAMA_AUTH_URL', 'AUTH_PUBLIC_KEY_PATH', 'CERT_PATH_PUBLIC', 'ADMIN_SERVICE_URL'] as const)(
+      'should reject a whitespace-only %s (IsNotEmpty alone would accept it)',
+      (key) => {
+        expect(() => validate({ ...validEnv, [key]: '   ' })).toThrow(new RegExp(key));
+      },
+    );
+
+    it('should throw when ADMIN_SERVICE_URL is missing', () => {
+      expect(() => validate(omit(validEnv, 'ADMIN_SERVICE_URL'))).toThrow(/ADMIN_SERVICE_URL/);
+    });
+
+    it('should throw when CERT_PATH_PUBLIC is missing', () => {
+      expect(() => validate(omit(validEnv, 'CERT_PATH_PUBLIC'))).toThrow(/CERT_PATH_PUBLIC/);
+    });
+
+    it('should throw on an empty config object', () => {
+      expect(() => validate({})).toThrow();
     });
 
     it('should convert numeric strings to strings with enableImplicitConversion', () => {

@@ -4,8 +4,8 @@ A web application for managing Tazama configuration tables (`network_map`, `rule
 
 ## Architecture
 
-- **backend/** — NestJS 11 thin proxy (port 3011). Forwards auth to `auth-service` and data to `admin-service`.
-- **frontend/** — Vite 7 + React 18 + TypeScript SPA (port 5173). MUI 7 + Ant Design 5 + Tailwind CSS 4.
+- **backend/** — NestJS 11 thin proxy (port 3015). Forwards auth to `auth-service` and data to `admin-service`.
+- **frontend/** — Vite 7 + React 18 + TypeScript SPA (port 5176). MUI 7 + Ant Design 5 + Tailwind CSS 4.
 
 ### Backend Structure
 
@@ -71,39 +71,43 @@ npm run dev:frontend   # terminal 2
 ```
 
 ### Backend
+
 ```bash
 cd backend
 cp .env.example .env
 npm install
 npm run start:dev
 ```
-Backend runs on `http://localhost:3011`. Swagger at `http://localhost:3011/api/docs`.
+
+Backend runs on `http://localhost:3015`. Swagger at `http://localhost:3015/api/docs`.
 
 ### Frontend
+
 ```bash
 cd frontend
 npm install --legacy-peer-deps
 npm run dev
 ```
-Frontend runs on `http://localhost:5173`.
+
+Frontend runs on `http://localhost:5176`.
 
 ## API Endpoints
 
 ### Auth
 
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
+| Method | Endpoint      | Description                              | Auth   |
+| ------ | ------------- | ---------------------------------------- | ------ |
 | `POST` | `/auth/login` | Login with username/password → JWT token | Public |
 
 ### Config (all require Bearer token)
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/config/:table` | List records (paginated: `limit`, `offset`, `sort`, `order`, `filters`) |
-| `GET` | `/config/:table/:id/:cfg` | Get a single record by id and cfg |
-| `POST` | `/config/:table` | Create a new record |
-| `PUT` | `/config/:table/:id/:cfg` | Update a record by id and cfg |
-| `DELETE` | `/config/:table/:id/:cfg` | Delete a record by id and cfg |
+| Method   | Endpoint                  | Description                                                             |
+| -------- | ------------------------- | ----------------------------------------------------------------------- |
+| `GET`    | `/config/:table`          | List records (paginated: `limit`, `offset`, `sort`, `order`, `filters`) |
+| `GET`    | `/config/:table/:id/:cfg` | Get a single record by id and cfg                                       |
+| `POST`   | `/config/:table`          | Create a new record                                                     |
+| `PUT`    | `/config/:table/:id/:cfg` | Update a record by id and cfg                                           |
+| `DELETE` | `/config/:table/:id/:cfg` | Delete a record by id and cfg                                           |
 
 Where `:table` is one of `network-map`, `rule`, or `typology`.
 
@@ -139,34 +143,40 @@ DELETE /v1/admin/configuration/{table}/{id}/{cfg}
 ## Environment
 
 ### Backend
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PORT` | Backend port | `3011` |
-| `NODE_ENV` | Node environment | `development` |
-| `TAZAMA_AUTH_URL` | Auth-service URL | *(required)* |
-| `ADMIN_SERVICE_URL` | Admin-service URL | `http://localhost:5100` |
-| `AUTH_PUBLIC_KEY_PATH` | Keycloak public key path | *(required)* |
-| `CERT_PATH_PUBLIC` | Public certificate path | *(required)* |
-| `FUNCTION_NAME` | Function name | *(required)* |
+
+| Variable               | Description                        | Default                 |
+| ---------------------- | ---------------------------------- | ----------------------- |
+| `PORT`                 | Backend port                       | `3015`                  |
+| `NODE_ENV`             | Node environment                   | `development`           |
+| `TAZAMA_AUTH_URL`      | Auth-service base URL (no `/v1/auth`) | _(required)_         |
+| `ADMIN_SERVICE_URL`    | Admin-service base URL             | _(required)_            |
+| `AUTH_PUBLIC_KEY_PATH` | Keycloak public key path           | _(required)_            |
+| `CERT_PATH_PUBLIC`     | Public certificate path            | _(required)_            |
+| `FUNCTION_NAME`        | Function name                      | _(required)_            |
+| `CORS_ORIGINS`         | Comma-separated allowed browser origins. Unset → only the dev origin (`http://localhost:5176`); set empty → no origins (fail closed). | _(dev origin)_ |
+| `HTTP_TIMEOUT_MS`      | Outbound timeout (ms) for auth-service and admin-service calls. Must be a positive integer; anything else (0, `.5`, `10s`) aborts startup. | `10000` |
 
 > **Production signing key:** the `public-key.pem` committed in `backend/` is a local-development convenience only. For production, do not rely on the repository copy — mount the verification key for your environment (secret or volume) and point `CERT_PATH_PUBLIC` at it. `@tazama-lf/auth-lib` reads `CERT_PATH_PUBLIC` and verifies incoming tokens with it (`readFileSync` → `jsonwebtoken.verify`), so this is the key file the service actually uses.
 
 ### Frontend
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `VITE_API_BASE_URL` | Backend URL | `http://localhost:3011` |
-| `VITE_APP_TITLE` | App title | `Tazama Config Studio` |
-| `VITE_APP_ENV` | App environment | `development` |
-| `VITE_ALLOWED_HOSTS` | Comma-separated allowed hosts (or `all`) | *(none)* |
+
+| Variable             | Description                              | Default                 |
+| -------------------- | ---------------------------------------- | ----------------------- |
+| `VITE_API_BASE_URL`  | Backend URL                              | `http://localhost:3015` |
+| `VITE_APP_TITLE`     | App title                                | `Tazama Config Studio`  |
+| `VITE_APP_ENV`       | App environment                          | `development`           |
+| `VITE_ALLOWED_HOSTS` | Comma-separated allowed hosts (or `all`) | _(none)_                |
 
 ## Key Dependencies
 
 ### Backend
+
 - NestJS 11, `@nestjs/axios`, `@nestjs/config`, `@nestjs/swagger`
-- `@tazama-lf/auth-lib` ^2.1.0, `@tazama-lf/frms-coe-lib` 8.0.0-rc.5
+- `@tazama-lf/auth-lib` ^2.1.0, `@tazama-lf/frms-coe-lib` 8.3.0
 - `jsonwebtoken`, `class-validator`, `class-transformer`
 
 ### Frontend
+
 - React 18, React Router 7, Vite 7
 - MUI 7 (`@mui/material`, `@mui/x-data-grid`), Ant Design 5
 - Tailwind CSS 4, `react-hook-form` + `yup`, `lucide-react`, `react-icons`
@@ -207,10 +217,10 @@ Coverage reports are output to `frontend/coverage/` in the same formats.
 
 ## Coverage Configuration
 
-| Package   | Tool  | Config Location     |
-|-----------|-------|---------------------|
-| Backend   | Jest  | `backend/package.json` (`jest` key) |
-| Frontend  | Vitest| `frontend/vite.config.ts` (`test.coverage` key) |
+| Package  | Tool   | Config Location                                 |
+| -------- | ------ | ----------------------------------------------- |
+| Backend  | Jest   | `backend/package.json` (`jest` key)             |
+| Frontend | Vitest | `frontend/vite.config.ts` (`test.coverage` key) |
 
 Both are configured with `coverageThreshold` / `thresholds` for all metrics. Tests will fail locally if coverage drops below the threshold. Backend uses 85% for all metrics; frontend uses lower thresholds for functions and branches due to untested UI components.
 

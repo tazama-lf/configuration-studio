@@ -12,9 +12,14 @@ export class AdminServiceClient {
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
   ) {
-    this.adminServiceUrl =
-      this.configService.get<string>('ADMIN_SERVICE_URL') ??
-      'http://localhost:5100';
+    // No localhost fallback: env.validation makes ADMIN_SERVICE_URL required,
+    // so a missing URL is a misconfiguration that must fail fast at boot
+    // rather than silently pointing production traffic at localhost.
+    const adminServiceUrl = this.configService.get<string>('ADMIN_SERVICE_URL');
+    if (!adminServiceUrl) {
+      throw new Error('ADMIN_SERVICE_URL is not set in environment variables');
+    }
+    this.adminServiceUrl = adminServiceUrl;
   }
 
   private getAuthHeaders(token: string, tenantId?: string): Record<string, string> {
@@ -43,29 +48,19 @@ export class AdminServiceClient {
       let response;
       switch (method) {
         case 'GET':
-          response = await firstValueFrom(
-            this.httpService.get(url, { headers }),
-          );
+          response = await firstValueFrom(this.httpService.get(url, { headers }));
           break;
         case 'POST':
-          response = await firstValueFrom(
-            this.httpService.post(url, body, { headers }),
-          );
+          response = await firstValueFrom(this.httpService.post(url, body, { headers }));
           break;
         case 'PUT':
-          response = await firstValueFrom(
-            this.httpService.put(url, body, { headers }),
-          );
+          response = await firstValueFrom(this.httpService.put(url, body, { headers }));
           break;
         case 'PATCH':
-          response = await firstValueFrom(
-            this.httpService.patch(url, body, { headers }),
-          );
+          response = await firstValueFrom(this.httpService.patch(url, body, { headers }));
           break;
         case 'DELETE':
-          response = await firstValueFrom(
-            this.httpService.delete(url, { headers }),
-          );
+          response = await firstValueFrom(this.httpService.delete(url, { headers }));
           break;
       }
 
@@ -84,34 +79,23 @@ export class AdminServiceClient {
     };
     if (err.response) {
       const { status, data } = err.response;
-      this.logger.error(
-        `${operation} failed with status ${status}: ${JSON.stringify(data)}`,
-      );
-
-      // Pass through the status code from admin-service
+      // Extract the message without logging the full upstream body: response
+      // bodies can contain configuration payloads and other internal data
+      // that must not end up in logs.
       const message =
-        data &&
-          typeof data === 'object' &&
-          'message' in data &&
-          typeof data.message === 'string'
+        data && typeof data === 'object' && 'message' in data && typeof data.message === 'string'
           ? data.message
           : 'Admin service returned an error response';
+      this.logger.error(`${operation} failed with status ${status}: ${message}`);
 
+      // Pass through the status code from admin-service
       throw new HttpException({ message, statusCode: status }, status);
     } else if (err.request) {
-      this.logger.error(
-        `${operation} - No response from admin-service: ${err.message}`,
-      );
-      throw new HttpException(
-        'Admin service is unavailable',
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
+      this.logger.error(`${operation} - No response from admin-service: ${err.message}`);
+      throw new HttpException('Admin service is unavailable', HttpStatus.SERVICE_UNAVAILABLE);
     } else {
       this.logger.error(`${operation} - Error: ${err.message}`);
-      throw new HttpException(
-        'Internal server error',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      throw new HttpException('Internal server error', HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 }

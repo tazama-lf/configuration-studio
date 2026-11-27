@@ -73,7 +73,7 @@ npm run e2e:report
 ## Configuration
 
 - **Playwright config:** `playwright.config.ts` (in the frontend root)
-- **Base URL:** `http://localhost:5173`
+- **Base URL:** `http://localhost:5176`
 - **Browser:** Chromium (Desktop Chrome)
 - **Timeouts:** 60s per test, 15s for actions, 30s for navigation
 - **Traces:** Captured on first retry

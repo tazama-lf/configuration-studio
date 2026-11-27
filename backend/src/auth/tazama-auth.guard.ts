@@ -1,19 +1,9 @@
-import {
-  Injectable,
-  CanActivate,
-  ExecutionContext,
-  UnauthorizedException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, UnauthorizedException, Logger } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import * as jwt from 'jsonwebtoken';
 import { validateTokenAndClaims } from '@tazama-lf/auth-lib';
 
-import type {
-  TazamaToken,
-  ClaimValidationResult,
-  AuthenticatedUser,
-} from './auth.types';
+import type { TazamaToken, ClaimValidationResult, AuthenticatedUser } from './auth.types';
 import { CLAIMS_KEY, IS_PUBLIC_KEY, ANY_CLAIMS_KEY } from './auth.decorator';
 
 @Injectable()
@@ -28,10 +18,7 @@ export class TazamaAuthGuard implements CanActivate {
     if (this.isPublicRoute(context)) return true;
 
     const request = context.switchToHttp().getRequest();
-    const token = this.extractBearerToken(
-      request.headers.authorization,
-      logContext,
-    );
+    const token = this.extractBearerToken(request.headers.authorization, logContext);
 
     const { requiredClaims, anyClaims } = this.getClaimsFromDecorators(context);
 
@@ -40,39 +27,23 @@ export class TazamaAuthGuard implements CanActivate {
     // client can react to an authentication failure rather than a server fault.
     let validated: ClaimValidationResult;
     try {
-      validated = validateTokenAndClaims(token, [
-        ...requiredClaims,
-        ...anyClaims,
-      ]);
+      validated = validateTokenAndClaims(token, [...requiredClaims, ...anyClaims]);
     } catch (error) {
-      this.logger.warn(
-        `Token validation failed: ${(error as Error).message}`,
-        logContext,
-      );
+      this.logger.warn(`Token validation failed: ${(error as Error).message}`, logContext);
       throw new UnauthorizedException('Invalid or expired token');
     }
 
-    const { status, valid, invalid } = this.evaluateClaimResult(
-      requiredClaims,
-      anyClaims,
-      validated,
-      logContext,
-    );
+    const { status, valid, invalid } = this.evaluateClaimResult(requiredClaims, anyClaims, validated, logContext);
 
     if (!status) {
-      throw new UnauthorizedException(
-        `Missing or invalid claims: ${invalid.join(', ')}`,
-      );
+      throw new UnauthorizedException(`Missing or invalid claims: ${invalid.join(', ')}`);
     }
 
     const decoded = this.extractTokenPayload(token);
 
     let innerDecoded: Record<string, unknown> = decoded as unknown as Record<string, unknown>;
     try {
-      const innerToken =
-        (innerDecoded.tokenString as
-          | string
-          | undefined) ?? token;
+      const innerToken = (innerDecoded.tokenString as string | undefined) ?? token;
       const innerParsed = jwt.decode(innerToken);
       if (innerParsed && typeof innerParsed === 'object') {
         innerDecoded = innerParsed;
@@ -84,23 +55,13 @@ export class TazamaAuthGuard implements CanActivate {
     const actorEmail = innerDecoded.preferred_username as string | undefined;
     const actorName = innerDecoded.preferred_username as string | undefined;
 
-    const realmAccess = innerDecoded.realm_access as
-      | { roles?: string[] }
-      | undefined;
+    const realmAccess = innerDecoded.realm_access as { roles?: string[] } | undefined;
     const realmRoles = realmAccess?.roles;
     const actorRole =
-      realmRoles?.find((role: string) =>
-        ['editor', 'approver', 'publisher', 'exporter'].includes(
-          role.toLowerCase(),
-        ),
-      ) ?? valid[0];
+      realmRoles?.find((role: string) => ['editor', 'approver', 'publisher', 'exporter'].includes(role.toLowerCase())) ?? valid[0];
 
     const sourceIP =
-      request.ip ??
-      (request.headers['x-forwarded-for'] as string | undefined)
-        ?.split(',')[0]
-        .trim() ??
-      request.socket.remoteAddress;
+      request.ip ?? (request.headers['x-forwarded-for'] as string | undefined)?.split(',')[0].trim() ?? request.socket.remoteAddress;
 
     if (!decoded.tenantId) {
       this.logger.warn('No tenantId found in token', logContext);
@@ -124,16 +85,10 @@ export class TazamaAuthGuard implements CanActivate {
   }
 
   private isPublicRoute(context: ExecutionContext): boolean {
-    return this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    return this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [context.getHandler(), context.getClass()]);
   }
 
-  private extractBearerToken(
-    authHeader: string | undefined,
-    ctx: string,
-  ): string {
+  private extractBearerToken(authHeader: string | undefined, ctx: string): string {
     if (!authHeader?.startsWith('Bearer ')) {
       this.logger.warn('No Bearer token provided', ctx);
       throw new UnauthorizedException('No Bearer token provided');
@@ -146,16 +101,10 @@ export class TazamaAuthGuard implements CanActivate {
     anyClaims: string[];
   } {
     const requiredClaims =
-      this.reflector.getAllAndOverride<string[] | undefined>(CLAIMS_KEY, [
-        context.getHandler(),
-        context.getClass(),
-      ]) ?? [];
+      this.reflector.getAllAndOverride<string[] | undefined>(CLAIMS_KEY, [context.getHandler(), context.getClass()]) ?? [];
 
     const anyClaims =
-      this.reflector.getAllAndOverride<string[] | undefined>(ANY_CLAIMS_KEY, [
-        context.getHandler(),
-        context.getClass(),
-      ]) ?? [];
+      this.reflector.getAllAndOverride<string[] | undefined>(ANY_CLAIMS_KEY, [context.getHandler(), context.getClass()]) ?? [];
 
     if (requiredClaims.length === 0 && anyClaims.length === 0) {
       // No claims specified — allow any authenticated user
@@ -180,10 +129,7 @@ export class TazamaAuthGuard implements CanActivate {
       const invalid = required.filter((c) => !validated[c]);
 
       if (invalid.length > 0) {
-        this.logger.warn(
-          `User missing required claims. Required: [${required.join(', ')}], Invalid: [${invalid.join(', ')}]`,
-          ctx,
-        );
+        this.logger.warn(`User missing required claims. Required: [${required.join(', ')}], Invalid: [${invalid.join(', ')}]`, ctx);
         return { status: false, valid, invalid };
       }
 
@@ -194,10 +140,7 @@ export class TazamaAuthGuard implements CanActivate {
     const invalid = any.filter((c) => !validated[c]);
 
     if (valid.length === 0) {
-      this.logger.warn(
-        `User missing any required claims. Required (any): [${any.join(', ')}], Invalid: [${invalid.join(', ')}]`,
-        ctx,
-      );
+      this.logger.warn(`User missing any required claims. Required (any): [${any.join(', ')}], Invalid: [${invalid.join(', ')}]`, ctx);
       return { status: false, valid, invalid };
     }
 
