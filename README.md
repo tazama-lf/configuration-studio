@@ -156,7 +156,7 @@ DELETE /v1/admin/configuration/{table}/{id}/{cfg}
 | `CORS_ORIGINS`         | Comma-separated allowed browser origins. Unset → only the dev origin (`http://localhost:5176`); set empty → no origins (fail closed). | _(dev origin)_ |
 | `HTTP_TIMEOUT_MS`      | Outbound timeout (ms) for auth-service and admin-service calls. Must be a positive integer; anything else (0, `.5`, `10s`) aborts startup. | `10000` |
 
-> **Production signing key:** the `public-key.pem` committed in `backend/` is a local-development convenience only. For production, do not rely on the repository copy — mount the verification key for your environment (secret or volume) and point `CERT_PATH_PUBLIC` at it. `@tazama-lf/auth-lib` reads `CERT_PATH_PUBLIC` and verifies incoming tokens with it (`readFileSync` → `jsonwebtoken.verify`), so this is the key file the service actually uses.
+> **Production signing key:** `backend/public-key.pem` is the public half of the Tazama **test** key pair. Its private key is published in the public `tazama-lf/tazama-stack` repo (`core/auth/test-private-key.pem`), so anyone can sign tokens this key accepts — for any tenant. Never use it outside local development. In every other environment, mount that environment's verification key (secret or volume) and point `CERT_PATH_PUBLIC` at it. `@tazama-lf/auth-lib` reads `CERT_PATH_PUBLIC` and verifies incoming tokens with it (`readFileSync` → `jsonwebtoken.verify`), so this is the key file the service actually uses.
 
 ### Frontend
 

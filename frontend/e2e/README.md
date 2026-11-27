@@ -4,8 +4,8 @@ End-to-end tests for the Tazama Config Studio frontend using [Playwright](https:
 
 ## Prerequisites
 
-1. **Backend API** running on `http://localhost:3011`
-2. **Frontend dev server** running on `http://localhost:5173`
+1. **Backend API** running on `http://localhost:3015`
+2. **Frontend dev server** running on `http://localhost:5176`
 3. **Test credentials** exported as environment variables (no credentials are stored in the repo):
 
 ```bash

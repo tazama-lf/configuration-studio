@@ -75,15 +75,15 @@ desc, id, cfg, tenantId, workflow{alertThreshold, interdictionThreshold, flowPro
 |----------------------------------|------|--------|------|
 | `id`,`cfg`,`desc`,`tenantId`     | REQ  | emitted | OK |
 | `creDtTm`                        | REQ  | server-injected | OK |
-| `updDtTm`                        | never | server-injected too | **EXTRA in studio** |
+| `updDtTm`                        | never | server-injected on create only; admin-service stamps it on every write | **OK — no longer injected on update** |
 | `workflow.alertThreshold`        | REQ  | emitted | OK |
 | `workflow.interdictionThreshold` | OPT (8/31) | always emitted | **EXTRA when unset** |
 | `workflow.flowProcessor`         | never | always emitted (`""`) | **EXTRA in studio** |
 | `rules[].{id,cfg,termId,wghts}`  | REQ  | emitted | OK |
 | `expression[]`                   | REQ  | emitted | OK |
 
-**Typology verdict: additive diffs only.** Studio output is a superset. Three real diffs:
-1. `updDtTm` written to typology (DB never has it there)
+**Typology verdict: additive diffs only.** Studio output is a superset. Two real diffs:
+1. ~~`updDtTm` written to typology (DB never has it there)~~ — **done**: no longer injected on update (create still stamps it; admin-service also stamps it on every write)
 2. `workflow.flowProcessor: ""` always present (DB never has it)
 3. `workflow.interdictionThreshold` always present even when 0/unset (DB has it in only 8/31)
 
@@ -114,7 +114,7 @@ cfg, active, messages, tenantId
 | `cfg`, `active`, `tenantId`               | REQ  | emitted | OK |
 | `name`                                    | n/a  | not emitted | **OK — `name` is not part of the NetworkMap schema, so it was removed** |
 | `creDtTm`                                 | REQ  | server-injected | OK |
-| `updDtTm`                                 | never | server-injected | **EXTRA in studio** |
+| `updDtTm`                                 | never | server-injected on create only; admin-service stamps it on every write | **OK — no longer injected on update** |
 | `messages[].{id,cfg,txTp}`                | REQ  | emitted | OK |
 | `messages[].typologies[].{id,cfg,rules}`  | REQ  | emitted | OK |
 | `messages[].typologies[].tenantId`        | never | not emitted | **OK — removed; per-typology `tenantId` is not part of the schema** |
