@@ -3,8 +3,8 @@ import { defineConfig, devices } from '@playwright/test';
 /**
  * Playwright configuration for Tazama Config Studio frontend.
  *
- * The tests assume the Vite dev server is running on http://localhost:5173
- * and the backend API is reachable at http://localhost:3011.
+ * The tests assume the Vite dev server is running on http://localhost:5176
+ * and the backend API is reachable at http://localhost:3015.
  *
  * Run the dev server first:  `npm run dev`
  * Then run the e2e tests:     `npx playwright test`
@@ -21,7 +21,7 @@ export default defineConfig({
   },
 
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: 'http://localhost:5176',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
