@@ -25,11 +25,7 @@ describe('TazamaAuthGuard', () => {
     jest.clearAllMocks();
   });
 
-  const createMockContext = (
-    headers: Record<string, string> = {},
-    ip?: string,
-    socket?: { remoteAddress?: string },
-  ): ExecutionContext => {
+  const createMockContext = (headers: Record<string, string> = {}, ip?: string, socket?: { remoteAddress?: string }): ExecutionContext => {
     const request = {
       headers,
       ip,
@@ -222,10 +218,7 @@ describe('TazamaAuthGuard', () => {
     it('should extract sourceIP from request.ip', () => {
       mockReflector(false);
 
-      const context = createMockContext(
-        { authorization: `Bearer ${validToken}` },
-        '192.168.1.1',
-      );
+      const context = createMockContext({ authorization: `Bearer ${validToken}` }, '192.168.1.1');
 
       guard.canActivate(context);
       const request = context.switchToHttp().getRequest();
@@ -236,7 +229,7 @@ describe('TazamaAuthGuard', () => {
       mockReflector(false);
 
       const context = createMockContext({
-        authorization: `Bearer ${validToken}`,
+        'authorization': `Bearer ${validToken}`,
         'x-forwarded-for': '10.0.0.1, 10.0.0.2',
       });
 
@@ -248,11 +241,7 @@ describe('TazamaAuthGuard', () => {
     it('should extract sourceIP from socket.remoteAddress as fallback', () => {
       mockReflector(false);
 
-      const context = createMockContext(
-        { authorization: `Bearer ${validToken}` },
-        undefined,
-        { remoteAddress: '127.0.0.1' },
-      );
+      const context = createMockContext({ authorization: `Bearer ${validToken}` }, undefined, { remoteAddress: '127.0.0.1' });
 
       guard.canActivate(context);
       const request = context.switchToHttp().getRequest();
@@ -379,9 +368,7 @@ describe('TazamaAuthGuard', () => {
       });
 
       expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
-      expect(() => guard.canActivate(context)).toThrow(
-        'Invalid or expired token',
-      );
+      expect(() => guard.canActivate(context)).toThrow('Invalid or expired token');
     });
 
     it('should not leak the underlying validation error message to the client', () => {
@@ -394,9 +381,7 @@ describe('TazamaAuthGuard', () => {
         authorization: 'Bearer garbage.invalid.token',
       });
 
-      expect(() => guard.canActivate(context)).not.toThrow(
-        'secret internal verification detail',
-      );
+      expect(() => guard.canActivate(context)).not.toThrow('secret internal verification detail');
     });
   });
 

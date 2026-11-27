@@ -12,55 +12,55 @@ import { IsArray, IsBoolean, IsObject, IsOptional, IsString } from 'class-valida
 
 /** Fields shared by every config payload. */
 class BaseConfigPayloadDto {
-    @IsOptional()
-    @IsString()
-    tenantId?: string;
+  @IsOptional()
+  @IsString()
+  tenantId?: string;
 }
 
 export class RulePayloadDto extends BaseConfigPayloadDto {
-    @IsString()
-    id!: string;
+  @IsString()
+  id!: string;
 
-    @IsString()
-    cfg!: string;
+  @IsString()
+  cfg!: string;
 
-    /** Documented as required and enforced by the UI form. */
-    @IsString()
-    desc!: string;
+  /** Documented as required and enforced by the UI form. */
+  @IsString()
+  desc!: string;
 
-    @IsObject()
-    config!: Record<string, unknown>;
+  @IsObject()
+  config!: Record<string, unknown>;
 }
 
 export class TypologyPayloadDto extends BaseConfigPayloadDto {
-    @IsString()
-    id!: string;
+  @IsString()
+  id!: string;
 
-    @IsString()
-    cfg!: string;
+  @IsString()
+  cfg!: string;
 
-    /** Documented as required and enforced by the UI form. */
-    @IsString()
-    desc!: string;
+  /** Documented as required and enforced by the UI form. */
+  @IsString()
+  desc!: string;
 
-    @IsArray()
-    rules!: unknown[];
+  @IsArray()
+  rules!: unknown[];
 
-    @IsArray()
-    expression!: unknown[];
+  @IsArray()
+  expression!: unknown[];
 
-    @IsObject()
-    workflow!: Record<string, unknown>;
+  @IsObject()
+  workflow!: Record<string, unknown>;
 }
 
 export class NetworkMapPayloadDto extends BaseConfigPayloadDto {
-    @IsString()
-    cfg!: string;
+  @IsString()
+  cfg!: string;
 
-    @IsArray()
-    messages!: unknown[];
+  @IsArray()
+  messages!: unknown[];
 
-    @IsOptional()
-    @IsBoolean()
-    active?: boolean;
+  @IsOptional()
+  @IsBoolean()
+  active?: boolean;
 }

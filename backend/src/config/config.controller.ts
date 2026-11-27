@@ -22,14 +22,14 @@ import type { AuthenticatedUser } from '../auth/auth.types';
 const TABLES: Partial<Record<string, ConfigTable>> = {
   'network-map': 'network_map',
   'network_map': 'network_map',
-  rule: 'rule',
-  typology: 'typology',
+  'rule': 'rule',
+  'typology': 'typology',
 };
 
 @Controller('config')
 @UseGuards(TazamaAuthGuard, ConfigClaimsGuard)
 export class ConfigController {
-  constructor(private readonly configProxyService: ConfigProxyService) { }
+  constructor(private readonly configProxyService: ConfigProxyService) {}
 
   /**
    * List records for a table (paginated)
@@ -42,12 +42,7 @@ export class ConfigController {
     @User() user: AuthenticatedUser,
   ): Promise<unknown> {
     const table = this.resolveTable(tableParam);
-    return await this.configProxyService.list(
-      table,
-      user.token.tokenString,
-      query,
-      user.tenantId,
-    );
+    return await this.configProxyService.list(table, user.token.tokenString, query, user.tenantId);
   }
 
   /**
@@ -59,19 +54,10 @@ export class ConfigController {
    * 404 was simply a missing route, not a shadowing problem.
    */
   @Get('network-map/:cfg')
-  async getNetworkMapById(
-    @Param('cfg') cfg: string,
-    @User() user: AuthenticatedUser,
-  ): Promise<unknown> {
+  async getNetworkMapById(@Param('cfg') cfg: string, @User() user: AuthenticatedUser): Promise<unknown> {
     const table = this.resolveTable('network-map');
     // For single-key tables the id path segment is not used by the proxy service.
-    return await this.configProxyService.getById(
-      table,
-      '',
-      cfg,
-      user.token.tokenString,
-      user.tenantId,
-    );
+    return await this.configProxyService.getById(table, '', cfg, user.token.tokenString, user.tenantId);
   }
 
   /**
@@ -95,11 +81,7 @@ export class ConfigController {
    */
   @Post(':table')
   @HttpCode(HttpStatus.CREATED)
-  async create(
-    @Param('table') tableParam: string,
-    @Body() body: unknown,
-    @User() user: AuthenticatedUser,
-  ): Promise<unknown> {
+  async create(@Param('table') tableParam: string, @Body() body: unknown, @User() user: AuthenticatedUser): Promise<unknown> {
     const table = this.resolveTable(tableParam);
     validateConfigPayload(table, body);
     return await this.configProxyService.create(table, body, user.token.tokenString, user.tenantId);
@@ -119,14 +101,7 @@ export class ConfigController {
   ): Promise<unknown> {
     const table = this.resolveTable(tableParam);
     validateConfigPayload(table, body);
-    return await this.configProxyService.update(
-      table,
-      id,
-      cfg,
-      body,
-      user.token.tokenString,
-      user.tenantId,
-    );
+    return await this.configProxyService.update(table, id, cfg, body, user.token.tokenString, user.tenantId);
   }
 
   /**
@@ -134,22 +109,11 @@ export class ConfigController {
    * PUT /config/network-map/:cfg
    */
   @Put('network-map/:cfg')
-  async updateNetworkMap(
-    @Param('cfg') cfg: string,
-    @Body() body: unknown,
-    @User() user: AuthenticatedUser,
-  ): Promise<unknown> {
+  async updateNetworkMap(@Param('cfg') cfg: string, @Body() body: unknown, @User() user: AuthenticatedUser): Promise<unknown> {
     const table = this.resolveTable('network-map');
     validateConfigPayload(table, body);
     // For single-key tables the id path segment is not used by the proxy service.
-    return await this.configProxyService.update(
-      table,
-      '',
-      cfg,
-      body,
-      user.token.tokenString,
-      user.tenantId,
-    );
+    return await this.configProxyService.update(table, '', cfg, body, user.token.tokenString, user.tenantId);
   }
 
   /**
@@ -174,10 +138,7 @@ export class ConfigController {
    */
   @Delete('network-map/:cfg')
   @HttpCode(HttpStatus.OK)
-  async deleteNetworkMap(
-    @Param('cfg') cfg: string,
-    @User() user: AuthenticatedUser,
-  ): Promise<unknown> {
+  async deleteNetworkMap(@Param('cfg') cfg: string, @User() user: AuthenticatedUser): Promise<unknown> {
     const table = this.resolveTable('network-map');
     // For single-key tables the id path segment is not used by the proxy service.
     return await this.configProxyService.delete(table, '', cfg, user.token.tokenString, user.tenantId);
@@ -189,11 +150,7 @@ export class ConfigController {
    */
   @Post('network-map/:cfg/activate')
   @HttpCode(HttpStatus.OK)
-  async activate(
-    @Param('cfg') cfg: string,
-    @Body() body: unknown,
-    @User() user: AuthenticatedUser,
-  ): Promise<unknown> {
+  async activate(@Param('cfg') cfg: string, @Body() body: unknown, @User() user: AuthenticatedUser): Promise<unknown> {
     return await this.configProxyService.activate(cfg, body, user.token.tokenString, user.tenantId);
   }
 
@@ -203,10 +160,7 @@ export class ConfigController {
    */
   @Post('network-map/:cfg/deactivate')
   @HttpCode(HttpStatus.OK)
-  async deactivate(
-    @Param('cfg') cfg: string,
-    @User() user: AuthenticatedUser,
-  ): Promise<unknown> {
+  async deactivate(@Param('cfg') cfg: string, @User() user: AuthenticatedUser): Promise<unknown> {
     return await this.configProxyService.deactivate(cfg, user.token.tokenString, user.tenantId);
   }
 
@@ -216,10 +170,7 @@ export class ConfigController {
    */
   @Post('network-map/reload')
   @HttpCode(HttpStatus.OK)
-  async reload(
-    @Body() body: unknown,
-    @User() user: AuthenticatedUser,
-  ): Promise<unknown> {
+  async reload(@Body() body: unknown, @User() user: AuthenticatedUser): Promise<unknown> {
     return await this.configProxyService.reload(body, user.token.tokenString, user.tenantId);
   }
 

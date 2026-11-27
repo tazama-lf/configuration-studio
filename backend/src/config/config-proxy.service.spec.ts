@@ -34,12 +34,7 @@ describe('ConfigProxyService', () => {
 
       await service.list('rule', 'token', {}, 'tenant-abc');
 
-      expect(mockAdminServiceClient.executeHttpRequest).toHaveBeenCalledWith(
-        'GET',
-        '/v1/admin/configuration/rule',
-        'token',
-        'tenant-abc',
-      );
+      expect(mockAdminServiceClient.executeHttpRequest).toHaveBeenCalledWith('GET', '/v1/admin/configuration/rule', 'token', 'tenant-abc');
     });
 
     it('should pass undefined tenantId when not provided', async () => {
@@ -47,12 +42,7 @@ describe('ConfigProxyService', () => {
 
       await service.list('rule', 'token', {});
 
-      expect(mockAdminServiceClient.executeHttpRequest).toHaveBeenCalledWith(
-        'GET',
-        '/v1/admin/configuration/rule',
-        'token',
-        undefined,
-      );
+      expect(mockAdminServiceClient.executeHttpRequest).toHaveBeenCalledWith('GET', '/v1/admin/configuration/rule', 'token', undefined);
     });
 
     it('should build query string with sort and order', async () => {
@@ -72,12 +62,7 @@ describe('ConfigProxyService', () => {
 
       await service.list('typology', 'token', {});
 
-      expect(mockAdminServiceClient.executeHttpRequest).toHaveBeenCalledWith(
-        'GET',
-        '/v1/admin/configuration/typology',
-        'token',
-        undefined,
-      );
+      expect(mockAdminServiceClient.executeHttpRequest).toHaveBeenCalledWith('GET', '/v1/admin/configuration/typology', 'token', undefined);
     });
 
     it('should skip undefined and empty values in query string', async () => {
@@ -200,11 +185,9 @@ describe('ConfigProxyService', () => {
 
   describe('update', () => {
     /** The outgoing PUT call, skipping the GET used to preserve creDtTm. */
-    const putCall = (): unknown[] | undefined =>
-      mockAdminServiceClient.executeHttpRequest.mock.calls.find((c) => c[0] === 'PUT');
+    const putCall = (): unknown[] | undefined => mockAdminServiceClient.executeHttpRequest.mock.calls.find((c) => c[0] === 'PUT');
 
-    const sentBody = (): Record<string, unknown> =>
-      putCall()?.[4] as Record<string, unknown>;
+    const sentBody = (): Record<string, unknown> => putCall()?.[4] as Record<string, unknown>;
 
     it('should call executeHttpRequest with PUT, path, and body', async () => {
       const body = { name: 'updated', creDtTm: '2020-01-01T00:00:00.000Z' };
@@ -341,9 +324,7 @@ describe('ConfigProxyService', () => {
 
     it('should preserve creDtTm from the stored record when the caller omits it', async () => {
       mockAdminServiceClient.executeHttpRequest.mockImplementation((method: string) =>
-        method === 'GET'
-          ? Promise.resolve({ id: 'rule-1', creDtTm: '2020-01-01T00:00:00.000Z' })
-          : Promise.resolve({ updated: true }),
+        method === 'GET' ? Promise.resolve({ id: 'rule-1', creDtTm: '2020-01-01T00:00:00.000Z' }) : Promise.resolve({ updated: true }),
       );
 
       await service.update('rule', 'rule-1', '1.0.0', { name: 'updated' }, 'token', 'tenant-1');
@@ -360,9 +341,7 @@ describe('ConfigProxyService', () => {
 
     it('should read the single-key path when preserving creDtTm for network_map', async () => {
       mockAdminServiceClient.executeHttpRequest.mockImplementation((method: string) =>
-        method === 'GET'
-          ? Promise.resolve({ cfg: '2.0.0', creDtTm: 'stored-creation-time' })
-          : Promise.resolve({}),
+        method === 'GET' ? Promise.resolve({ cfg: '2.0.0', creDtTm: 'stored-creation-time' }) : Promise.resolve({}),
       );
 
       await service.update('network_map', 'ignored-id', '2.0.0', { name: 'nm' }, 'token', 'tenant-1');
@@ -378,9 +357,7 @@ describe('ConfigProxyService', () => {
 
     it('should preserve creDtTm from the stored record when a network map update omits it', async () => {
       mockAdminServiceClient.executeHttpRequest.mockImplementation((method: string) =>
-        method === 'GET'
-          ? Promise.resolve({ cfg: '2.0.0', creDtTm: 'stored-creation-time' })
-          : Promise.resolve({}),
+        method === 'GET' ? Promise.resolve({ cfg: '2.0.0', creDtTm: 'stored-creation-time' }) : Promise.resolve({}),
       );
 
       await service.update('network_map', 'ignored-id', '2.0.0', { messages: [] }, 'token', 'tenant-1');
@@ -391,14 +368,7 @@ describe('ConfigProxyService', () => {
     it('reads the stored record and ignores a caller-supplied creDtTm for a network map update', async () => {
       mockAdminServiceClient.executeHttpRequest.mockResolvedValue({});
 
-      await service.update(
-        'network_map',
-        'ignored-id',
-        '2.0.0',
-        { creDtTm: '2020-01-01T00:00:00.000Z' },
-        'token',
-        'tenant-1',
-      );
+      await service.update('network_map', 'ignored-id', '2.0.0', { creDtTm: '2020-01-01T00:00:00.000Z' }, 'token', 'tenant-1');
 
       const methods = mockAdminServiceClient.executeHttpRequest.mock.calls.map((c) => c[0]);
       // Issue #42: creDtTm is audit data taken from the stored record, so the
@@ -415,9 +385,9 @@ describe('ConfigProxyService', () => {
         method === 'GET' ? Promise.reject(new Error('transient')) : Promise.resolve({ updated: true }),
       );
 
-      await expect(
-        service.update('network_map', 'ignored-id', '2.0.0', { messages: [] }, 'token', 'tenant-1'),
-      ).rejects.toThrow(ServiceUnavailableException);
+      await expect(service.update('network_map', 'ignored-id', '2.0.0', { messages: [] }, 'token', 'tenant-1')).rejects.toThrow(
+        ServiceUnavailableException,
+      );
       const methods = mockAdminServiceClient.executeHttpRequest.mock.calls.map((c) => c[0]);
       expect(methods).toEqual(['GET']);
     });
@@ -443,9 +413,7 @@ describe('ConfigProxyService', () => {
         method === 'GET' ? Promise.reject(forbidden) : Promise.resolve({ updated: true }),
       );
 
-      await expect(
-        service.update('network_map', 'ignored-id', '2.0.0', { messages: [] }, 'token', 'tenant-1'),
-      ).rejects.toBe(forbidden);
+      await expect(service.update('network_map', 'ignored-id', '2.0.0', { messages: [] }, 'token', 'tenant-1')).rejects.toBe(forbidden);
       const methods = mockAdminServiceClient.executeHttpRequest.mock.calls.map((c) => c[0]);
       expect(methods).toEqual(['GET']);
     });
@@ -477,9 +445,7 @@ describe('ConfigProxyService', () => {
         method === 'GET' ? Promise.reject(new Error('connection reset')) : Promise.resolve({ ok: true }),
       );
 
-      await expect(
-        service.update('rule', 'rule-1', '1.0.0', { name: 'updated' }, 'token'),
-      ).rejects.toThrow(ServiceUnavailableException);
+      await expect(service.update('rule', 'rule-1', '1.0.0', { name: 'updated' }, 'token')).rejects.toThrow(ServiceUnavailableException);
     });
 
     it('should not read the stored record for a non-object body', async () => {
@@ -580,8 +546,8 @@ describe('ConfigProxyService', () => {
       mockAdminServiceClient.executeHttpRequest.mockResolvedValue({ data: [], meta: { total: 0 } });
 
       await service.list('network_map', 'token', {
-        limit: '1',
-        offset: '0',
+        'limit': '1',
+        'offset': '0',
         'filters[active]': 'true',
       });
 
@@ -632,12 +598,7 @@ describe('ConfigProxyService', () => {
         filters: undefined,
       });
 
-      expect(mockAdminServiceClient.executeHttpRequest).toHaveBeenCalledWith(
-        'GET',
-        '/v1/admin/configuration/typology',
-        'token',
-        undefined,
-      );
+      expect(mockAdminServiceClient.executeHttpRequest).toHaveBeenCalledWith('GET', '/v1/admin/configuration/typology', 'token', undefined);
     });
   });
 

@@ -1,4 +1,3 @@
-/* eslint-disable import/first -- dotenv must be imported and configured before other modules */
 import * as dotenv from 'dotenv';
 
 dotenv.config({ path: '.env' });
@@ -9,31 +8,22 @@ import { ConfigService } from '@nestjs/config';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
-/* eslint-enable import/first */
+import { isProductionEnv, parseCorsOrigins } from './config/runtime-config';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
   const logger = new Logger('Bootstrap');
 
-  /**
-   * NODE_ENV drives environment-specific behavior below (Swagger, CSP).
-   * 'production' and 'prod' both count as production.
-   */
-  const nodeEnv = configService.get<string>('NODE_ENV') ?? 'development';
-  const isProduction = nodeEnv === 'production' || nodeEnv === 'prod';
+  // NODE_ENV drives environment-specific behavior below (Swagger, CSP);
+  // 'production' and 'prod' both count as production.
+  const isProduction = isProductionEnv(configService.get<string>('NODE_ENV'));
 
-  /**
-   * Allowed CORS origins. `origin: true` reflected any Origin header back
-   * together with credentials, letting any site make authenticated requests
-   * to this API. Restrict to the origins configured via CORS_ORIGINS
-   * (comma-separated); default to the local dev frontend when unset, and
-   * allow none when explicitly set empty.
-   */
-  const corsOrigins = (configService.get<string>('CORS_ORIGINS') ?? 'http://localhost:5176')
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter((origin) => origin.length > 0);
+  // Allowed CORS origins. `origin: true` used to reflect any Origin header
+  // back together with credentials; restrict to the origins configured via
+  // CORS_ORIGINS (comma-separated), default to the dev frontend when unset,
+  // and allow none when explicitly set empty. See parseCorsOrigins.
+  const corsOrigins = parseCorsOrigins(configService.get<string>('CORS_ORIGINS'));
 
   /**
    * Security headers. Full helmet in production; in development the CSP is
@@ -49,12 +39,19 @@ async function bootstrap(): Promise<void> {
           scriptSrc: [`'self'`, `'unsafe-inline'`, 'cdn.jsdelivr.net'],
           styleSrc: [`'self'`, `'unsafe-inline'`, 'cdn.jsdelivr.net'],
           imgSrc: [`'self'`, 'data:'],
+          // Helmet defaults this on; Safari honours it even for
+          // http://localhost and then refuses to load Swagger's assets, so
+          // drop it outside production where Swagger is served over http.
+          upgradeInsecureRequests: null,
         },
       }),
     );
   }
   // Never advertise the server framework.
-  app.getHttpAdapter().getInstance().disable('x-powered-by');
+  const httpAdapter = app.getHttpAdapter().getInstance() as {
+    disable: (name: string) => void;
+  };
+  httpAdapter.disable('x-powered-by');
 
   /**
    * Behind a load balancer, Express reports the proxy's address as the
@@ -118,4 +115,4 @@ async function bootstrap(): Promise<void> {
   await app.listen(port);
   logger.log(`Application is running on: http://localhost:${port}`);
 }
-bootstrap();
+void bootstrap();

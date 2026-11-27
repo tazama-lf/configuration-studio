@@ -2,28 +2,22 @@ import { BadRequestException } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { validateSync, type ValidationError } from 'class-validator';
 import type { ConfigTable } from '../config-proxy.service';
-import {
-    NetworkMapPayloadDto,
-    RulePayloadDto,
-    TypologyPayloadDto,
-} from './config-payload.dto';
+import { NetworkMapPayloadDto, RulePayloadDto, TypologyPayloadDto } from './config-payload.dto';
 
 const DTO_BY_TABLE: Record<ConfigTable, new () => object> = {
-    rule: RulePayloadDto,
-    typology: TypologyPayloadDto,
-    network_map: NetworkMapPayloadDto,
+  rule: RulePayloadDto,
+  typology: TypologyPayloadDto,
+  network_map: NetworkMapPayloadDto,
 };
 
 function collectMessages(errors: ValidationError[]): string[] {
-    const messages: string[] = [];
-    for (const error of errors) {
-        for (const constraint of Object.values(
-            error.constraints as Record<string, string>,
-        )) {
-            messages.push(constraint);
-        }
+  const messages: string[] = [];
+  for (const error of errors) {
+    for (const constraint of Object.values(error.constraints as Record<string, string>)) {
+      messages.push(constraint);
     }
-    return messages;
+  }
+  return messages;
 }
 
 /**
@@ -37,15 +31,15 @@ function collectMessages(errors: ValidationError[]): string[] {
  * untouched here; only the declared fields are checked.
  */
 export function validateConfigPayload(table: ConfigTable, body: unknown): void {
-    if (body === null || typeof body !== 'object' || Array.isArray(body)) {
-        throw new BadRequestException('Request body must be a JSON object');
-    }
+  if (body === null || typeof body !== 'object' || Array.isArray(body)) {
+    throw new BadRequestException('Request body must be a JSON object');
+  }
 
-    const dtoClass = DTO_BY_TABLE[table];
-    const instance = plainToInstance(dtoClass, body as Record<string, unknown>);
-    const errors = validateSync(instance);
+  const dtoClass = DTO_BY_TABLE[table];
+  const instance = plainToInstance(dtoClass, body as Record<string, unknown>);
+  const errors = validateSync(instance);
 
-    if (errors.length > 0) {
-        throw new BadRequestException(collectMessages(errors));
-    }
+  if (errors.length > 0) {
+    throw new BadRequestException(collectMessages(errors));
+  }
 }
