@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException, HttpException, HttpStatus } from '@nestjs/common';
 import { AdminServiceClient } from '../services/admin-service-client.service';
 
 export type ConfigTable = 'network_map' | 'rule' | 'typology';
@@ -60,7 +60,7 @@ export class ConfigProxyService {
     if (body !== null && typeof body === 'object') {
       (body as Record<string, unknown>).tenantId = tenantId;
     }
-    const bodyWithTimestamps = this.injectTimestamps(body, true);
+    const bodyWithTimestamps = this.injectTimestamps(table, body, true);
     return await this.adminServiceClient.executeHttpRequest('POST', path, token, tenantId, bodyWithTimestamps);
   }
 
@@ -85,7 +85,7 @@ export class ConfigProxyService {
     if (body !== null && typeof body === 'object') {
       (body as Record<string, unknown>).tenantId = tenantId;
     }
-    const bodyWithTimestamps = this.injectTimestamps(body, false);
+    const bodyWithTimestamps = this.injectTimestamps(table, body, false);
     await this.preserveOmittedFields(table, id, cfg, bodyWithTimestamps, token, tenantId);
     return await this.adminServiceClient.executeHttpRequest('PUT', path, token, tenantId, bodyWithTimestamps);
   }
@@ -158,11 +158,14 @@ export class ConfigProxyService {
 
   /**
    * Inject creDtTm and updDtTm timestamps into the request body.
-   * On create: both creDtTm and updDtTm are set to the current time.
-   * On update: only updDtTm is refreshed; creDtTm is preserved by
-   * preserveOmittedFields().
+   *
+   * On create we stamp both for every table. On update, `creDtTm` must never be
+   * caller-controlled, so it is never stamped here (preserveOmittedFields keeps
+   * the stored value). `updDtTm` is only stamped for `rule`: admin-service's own
+   * repositories stamp `updDtTm` for network_map and typology, and those stored
+   * records never carry it, so adding it here would diverge from the DB shape.
    */
-  private injectTimestamps(body: unknown, isCreate: boolean): unknown {
+  private injectTimestamps(table: ConfigTable, body: unknown, isCreate: boolean): unknown {
     if (body === null || typeof body !== 'object') {
       return body;
     }
@@ -171,7 +174,7 @@ export class ConfigProxyService {
     if (isCreate) {
       record.creDtTm = now;
       record.updDtTm = now;
-    } else {
+    } else if (table === 'rule') {
       record.updDtTm = now;
     }
     return record;
@@ -184,14 +187,13 @@ export class ConfigProxyService {
    * A PUT replaces the whole stored configuration, so any key the caller omits
    * is deleted. The frontend builds its update payload from the form and does
    * not carry creDtTm forward, which used to silently wipe the creation
-   * timestamp on every edit. Network map edits have the same problem for
-   * `name`: the UI form has no name field, but every stored network map has
-   * one, so every edit used to clear it.
+   * timestamp on every edit. `creDtTm` is merged back from the stored record
+   * whenever it is omitted.
    *
-   * creDtTm is always taken from the stored record on update — including
-   * when the caller supplies one — so a client can never rewrite the audit
-   * trail. Callers that omit it get the stored value merged back in; callers
-   * that send one get it silently replaced with the stored value.
+   * If the preservation read fails (transient admin-service error) we cannot
+   * safely send the PUT — it would drop creDtTm (the very #29 data loss) — so
+   * the update is rejected with a retryable 503. A 404 is a confirmed-absent
+   * record (create-style upsert) and proceeds normally.
    */
   private async preserveOmittedFields(
     table: ConfigTable,
@@ -204,31 +206,30 @@ export class ConfigProxyService {
     if (!this.isPlainRecord(body)) {
       return;
     }
-    // creDtTm is always enforced from the stored record on update, and a
-    // network map name is preserved when omitted — both need the stored
-    // record, so the fetch is unconditional for object bodies.
-    const preserveName = table === 'network_map' && body.name === undefined;
-
-    const existing = await this.fetchExistingRecord(table, id, cfg, token, tenantId);
-    if (!existing) {
+    if (body.creDtTm !== undefined) {
       return;
     }
-    if (existing.creDtTm !== undefined) {
+
+    const existing = await this.fetchExistingRecord(table, id, cfg, token, tenantId);
+    if (existing === null) {
+      throw new ServiceUnavailableException(
+        'Could not read the stored record to preserve its creation timestamp. Please retry.',
+      );
+    }
+    if (existing && existing.creDtTm !== undefined) {
       body.creDtTm = existing.creDtTm;
     } else if (body.creDtTm !== undefined) {
       // The store has no creation timestamp to enforce — a caller-supplied
       // value would be a forgery, so drop it.
       delete body.creDtTm;
     }
-    if (preserveName && existing.name !== undefined) {
-      body.name = existing.name;
-    }
   }
 
   /**
-   * Read the stored record so update() can preserve fields the caller omitted.
-   * Failures are non-fatal: the record may not exist yet, or admin-service may
-   * be unreachable, and the update itself is what reports those outcomes.
+   * Read the stored record so update() can preserve creDtTm. Returns:
+   *   - the record object when found
+   *   - undefined when the record is confirmed absent (a 404 → upsert path)
+   *   - null when the read failed transiently (caller must not proceed)
    */
   private async fetchExistingRecord(
     table: ConfigTable,
@@ -236,15 +237,30 @@ export class ConfigProxyService {
     cfg: string,
     token: string,
     tenantId?: string,
-  ): Promise<Record<string, unknown> | undefined> {
+  ): Promise<Record<string, unknown> | undefined | null> {
     try {
       const existing = await this.getById(table, id, cfg, token, tenantId);
       return this.isPlainRecord(existing) ? existing : undefined;
     } catch (error) {
+      // AdminServiceClient throws HttpException. A 404 is a confirmed-absent
+      // record (create-style upsert) - proceed without preservation. Any other
+      // deliberate 4xx (401 expired session, 403 permission, 400 bad request)
+      // is the client's real problem and must surface as-is - masking it as a
+      // 503 "please retry" would hide an unrecoverable error. Only 5xx /
+      // connection failures are transient and return null (-> 503).
+      if (error instanceof HttpException) {
+        const status = error.getStatus();
+        if (status === HttpStatus.NOT_FOUND) {
+          return undefined;
+        }
+        if (status < HttpStatus.INTERNAL_SERVER_ERROR) {
+          throw error;
+        }
+      }
       this.logger.warn(
-        `Could not read existing ${table} ${id}/${cfg} to preserve omitted fields: ${(error as Error).message}`,
+        `Could not read existing ${table} ${id}/${cfg} to preserve creDtTm: ${(error as Error).message}`,
       );
-      return undefined;
+      return null;
     }
   }
 

@@ -112,7 +112,7 @@ cfg, active, messages, tenantId
 | Field                                     | DB   | Studio | Diff |
 |-------------------------------------------|------|--------|------|
 | `cfg`, `active`, `tenantId`               | REQ  | emitted | OK |
-| `name`                                    | REQ  | **not emitted** | **MISSING in studio** (fixed: backend now preserves the stored `name` on update) |
+| `name`                                    | n/a  | not emitted | **OK — `name` is not part of the NetworkMap schema, so it was removed** |
 | `creDtTm`                                 | REQ  | server-injected | OK |
 | `updDtTm`                                 | never | server-injected | **EXTRA in studio** |
 | `messages[].{id,cfg,txTp}`                | REQ  | emitted | OK |
@@ -120,10 +120,10 @@ cfg, active, messages, tenantId
 | `messages[].typologies[].tenantId`        | never | emitted at [NetworkMapConfigEditor.tsx:151](../frontend/src/features/config/components/NetworkMapConfigEditor.tsx#L151) | **EXTRA in studio** |
 | `rules[].{id,cfg}`                        | REQ  | emitted | OK |
 
-**Network map verdict: one blocker + additive diffs.**
-1. ~~**Missing `name`**~~ — **resolved**: the backend now merges the stored `name` back into update payloads (see `preserveOmittedFields()` in `config-proxy.service.ts`), so UI edits no longer wipe it
-2. `updDtTm` written (DB never has it here)
-3. Per-typology `tenantId` written (DB never has it there)
+**Network map verdict: additive diffs only.**
+1. ~~**Missing `name`**~~ — **resolved by removal**: `name` is not a field of the Tazama `NetworkMap` schema (not in admin-service dev/main nor frms-coe-lib), and admin-service strips it on write, so the Studio no longer emits or accepts it
+2. `updDtTm` — the Studio no longer injects it on **update** for network_map/typology (only `rule` gets it on update; `create` still stamps it for every table so the payload has it). Note admin-service's own repositories also stamp `updDtTm` for network_map/typology, so the stored record carries it regardless — this change only stops the Studio sending a redundant copy.
+3. Per-typology `tenantId` written (DB never has it there) — fixed in config-studio (no longer emitted)
 
 ---
 
@@ -131,12 +131,12 @@ cfg, active, messages, tenantId
 
 - **Rules:** compatible.
 - **Typologies:** superset — extra fields don't break the DB but output isn't identical.
-- **Network maps:** **`name` field is missing entirely.** Studio-saved network maps would be missing a field that all DB records have. Fix required.
+- **Network maps:** `name` is not a `NetworkMap` field (admin-service rejects/strips it and the canonical interface omits it), so it was removed from the Studio. Remaining diffs (`updDtTm`, per-typology `tenantId`) are handled in config-studio.
 
 ## Required fixes to match DB shape
 
-1. ~~**Add `name` to the network map editor** and include it in the emitted payload~~ — **resolved differently**: the backend preserves the stored `name` on update (`preserveOmittedFields()` in [config-proxy.service.ts](../backend/src/config/config-proxy.service.ts)), so the editor needs no name field.
-2. **Stop injecting `updDtTm` for typology and network_map** — restrict [config-proxy.service.ts (injectTimestamps)](../backend/src/config/config-proxy.service.ts) to `rule` only, or drop `updDtTm` from those payloads before persisting.
-3. **Remove per-typology `tenantId`** from network-map emission ([NetworkMapConfigEditor.tsx:151](../frontend/src/features/config/components/NetworkMapConfigEditor.tsx#L151)).
-4. **Omit `flowProcessor` from typology `workflow`** when empty ([TypologyConfigEditor.tsx:136-140](../frontend/src/features/config/components/TypologyConfigEditor.tsx#L136-L140)) — or drop the field entirely if there's no plan to use it.
+1. ~~**Add `name` to the network map editor**~~ — **removed instead**: `name` is not part of the `NetworkMap` schema, so the Studio no longer emits it.
+2. **Stop injecting `updDtTm` for typology and network_map** — restrict [config-proxy.service.ts:159-172](../home/ak/workspace/config-studio/backend/src/config/config-proxy.service.ts#L159-L172) to `rule` only, or drop `updDtTm` from those payloads before persisting. The `network_map` part is pending TMS confirmation.
+3. **Remove per-typology `tenantId`** from network-map emission ([NetworkMapConfigEditor.tsx:151](../home/ak/workspace/config-studio/frontend/src/features/config/components/NetworkMapConfigEditor.tsx#L151)). Pending TMS confirmation.
+4. **Omit `flowProcessor` from typology `workflow`** when empty ([TypologyConfigEditor.tsx:136-140](../home/ak/workspace/config-studio/frontend/src/features/config/components/TypologyConfigEditor.tsx#L136-L140)) — or drop the field entirely if there's no plan to use it.
 5. **Omit `workflow.interdictionThreshold`** when 0/unset (same lines) — DB only has it in 26% of typologies.

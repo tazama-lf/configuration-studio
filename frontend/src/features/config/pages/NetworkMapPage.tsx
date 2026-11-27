@@ -33,11 +33,10 @@ import { useTenant } from "../useTenant";
 import NetworkMapConfigEditor from "../components/NetworkMapConfigEditor";
 import JsonPreviewPanel from "../components/JsonPreviewPanel";
 import { isValidConfigVersion } from "../../../utils/validation";
-import { MAX_CONFIG_VERSION_LENGTH, MAX_DESCRIPTION_LENGTH } from "../../../utils/constants";
+import { MAX_CONFIG_VERSION_LENGTH } from "../../../utils/constants";
 
 interface NetworkMapRecord {
   cfg: string;
-  name?: string;
   active: boolean;
   messages: string;
   tenantId: string;
@@ -75,7 +74,6 @@ const NetworkMapPage: React.FC = () => {
   // Form fields
   const [formData, setFormData] = useState({
     cfg: "1.0.0",
-    name: "",
     active: true,
     messages: "[]",
     tenantId: "",
@@ -110,7 +108,7 @@ const NetworkMapPage: React.FC = () => {
     // creating with active=true fails with a raw DB constraint error whenever
     // the tenant already has an active map. Maps are normally created
     // inactive and activated explicitly afterwards.
-    setFormData({ cfg: "1.0.0", name: "", active: false, messages: "[]", tenantId });
+    setFormData({ cfg: "1.0.0", active: false, messages: "[]", tenantId });
     setDialogOpen(true);
   };
 
@@ -119,7 +117,6 @@ const NetworkMapPage: React.FC = () => {
     setSelectedRecord(record);
     setFormData({
       cfg: record.cfg,
-      name: record.name ?? "",
       active: record.active,
       messages: typeof record.messages === "string" ? record.messages : JSON.stringify(record.messages ?? [], null, 2),
       tenantId: record.tenantId ?? tenantId,
@@ -132,7 +129,6 @@ const NetworkMapPage: React.FC = () => {
     setSelectedRecord(record);
     setFormData({
       cfg: record.cfg,
-      name: record.name ?? "",
       active: record.active,
       messages: typeof record.messages === "string" ? record.messages : JSON.stringify(record.messages ?? [], null, 2),
       tenantId: record.tenantId ?? tenantId,
@@ -167,17 +163,19 @@ const NetworkMapPage: React.FC = () => {
   }, []);
 
   const handleActivate = async (record: NetworkMapRecord) => {
-    const activeMap = await findActiveMap();
-    if (activeMap && activeMap.cfg !== record.cfg) {
-      showError(
-        "Failed to activate network map",
-        `Network map ${activeMap.cfg} is already active. Deactivate it first.`,
-      );
-      return;
-    }
+    // Busy state covers the lookup too: without it a second click during
+    // findActiveMap() could start a duplicate activation.
     setActionLoading(true);
     setActionMenuAnchor(null);
     try {
+      const activeMap = await findActiveMap();
+      if (activeMap && activeMap.cfg !== record.cfg) {
+        showError(
+          "Failed to activate network map",
+          `Network map ${activeMap.cfg} is already active. Deactivate it first.`,
+        );
+        return;
+      }
       await configApi.activateNetworkMap(record.cfg, "broadcast");
       showSuccess(`Network map ${record.cfg} activated successfully`);
       fetchData();
@@ -238,28 +236,22 @@ const NetworkMapPage: React.FC = () => {
       showError("Validation error", "Messages must be a JSON array (e.g. [] or [{ id: 'x', cfg: '1.0.0', ... }])");
       return;
     }
-    // Only one network map can be active per tenant (enforced by a unique DB
-    // index). Reject the save up front with a clear message instead of letting
-    // the raw constraint error through. The check queries the API so an active
-    // map on another page is still caught.
-    if (formData.active) {
-      const activeMap = await findActiveMap();
-      if (activeMap && activeMap.cfg !== formData.cfg) {
-        showError("Validation error", `Network map ${activeMap.cfg} is already active. Deactivate it first.`);
-        return;
-      }
-    }
-    // A token without a tenant must not fall back to a "default" tenant —
-    // the write would target the wrong tenant's data (issue #43).
-    if (missingTenant) {
-      showError("Validation error", "Your session has no tenant context. Please log in again.");
-      return;
-    }
+    // Busy state covers the active-map lookup so a double-click cannot
+    // start a second save while the check is in flight.
     setActionLoading(true);
     try {
+      // Only one network map can be active per tenant (enforced by a unique
+      // DB index). The check queries the API so an active map on another
+      // page is still caught; the raw constraint error never reaches the user.
+      if (formData.active) {
+        const activeMap = await findActiveMap();
+        if (activeMap && activeMap.cfg !== formData.cfg) {
+          showError("Validation error", `Network map ${activeMap.cfg} is already active. Deactivate it first.`);
+          return;
+        }
+      }
       const payload = {
         cfg: formData.cfg,
-        name: formData.name,
         active: formData.active,
         messages: parsedMessages,
         tenantId,
@@ -300,7 +292,6 @@ const NetworkMapPage: React.FC = () => {
 
   const columns: GridColDef[] = [
     { field: "cfg", headerName: "Config Version", width: 130 },
-    { field: "name", headerName: "Name", flex: 1, minWidth: 120, sortable: false },
     {
       field: "active",
       headerName: "Active",
@@ -462,15 +453,6 @@ const NetworkMapPage: React.FC = () => {
                       ? "Config Version must contain only digits and dots (e.g. 1.0.0)"
                       : undefined
                 }
-              />
-              <TextField
-                label="Name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                disabled={isReadOnly}
-                fullWidth
-                slotProps={{ htmlInput: { maxLength: MAX_DESCRIPTION_LENGTH } }}
-                helperText="Display name of the network map"
               />
               <FormControlLabel
                 control={

@@ -123,7 +123,7 @@ Validation tips
 **3) Create a Network Map (UI)**
 
 - Navigate to Manage → Network Map Configuration.
-- Click `Create New` (or Edit existing) and provide `name`, `cfg` (config version), `messages` array where each message links `txTp` to typologies.
+- Click `Create New` (or Edit existing) and provide `cfg` (config version) and a `messages` array where each message links `txTp` to typologies.
 - Use `Activate` to set a network map active (this calls the backend activate endpoint).
 
 Equivalent API (POST /config/network-map)
@@ -133,7 +133,6 @@ Equivalent API (POST /config/network-map)
 
 {
 "cfg": "1.0.0",
-"name": "Public Network Map",
 "active": true,
 "messages": [
 {

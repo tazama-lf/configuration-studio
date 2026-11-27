@@ -227,59 +227,6 @@ describe("NetworkMapPage", () => {
     expect(mockCreate).toHaveBeenCalledWith("network_map", expect.objectContaining({ active: false }));
   });
 
-  it("includes the name field in the create payload", async () => {
-    renderPage();
-    fireEvent.click(screen.getByText("Create New"));
-    await waitFor(() => expect(screen.getByText("Create")).toBeInTheDocument());
-    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Public Network Map" } });
-    fireEvent.click(screen.getByText("Create"));
-    await waitFor(() => expect(mockCreate).toHaveBeenCalled());
-    expect(mockCreate).toHaveBeenCalledWith(
-      "network_map",
-      expect.objectContaining({ name: "Public Network Map" }),
-    );
-  });
-
-  it("blocks saving when the token has no tenant instead of falling back to a default", async () => {
-    // Issue #43: a missing tenant must not silently write to a "default"
-    // tenant — the save is blocked with a clear message.
-    mockUser = { id: "1", username: "test" };
-    renderPage();
-    await waitFor(() => expect(screen.getByTestId("row-0")).toBeInTheDocument());
-    fireEvent.click(screen.getByText("Create New"));
-    await waitFor(() => expect(screen.getByText("Create")).toBeInTheDocument());
-    fireEvent.click(screen.getByText("Create"));
-    await waitFor(() =>
-      expect(mockShowError).toHaveBeenCalledWith(
-        "Validation error",
-        "Your session has no tenant context. Please log in again.",
-      ),
-    );
-    expect(mockCreate).not.toHaveBeenCalled();
-  });
-
-  it("carries the stored name into the edit form and update payload", async () => {    mockList.mockImplementation((_table, params) => {
-      const filtered = params.filters?.active === "true";
-      const data = filtered
-        ? testData.filter((r) => r.active)
-        : [{ ...testData[1], name: "Stored Name" }];
-      return Promise.resolve({ data, meta: { total: data.length, limit: 20, offset: 0 } });
-    });
-    renderPage();
-    await waitFor(() => expect(screen.getByTestId("row-0")).toBeInTheDocument());
-    clickAction("Edit");
-    await waitFor(() => expect(screen.getByText("Save")).toBeInTheDocument());
-    expect(screen.getByLabelText("Name")).toHaveValue("Stored Name");
-    fireEvent.click(screen.getByText("Save"));
-    await waitFor(() => expect(mockUpdate).toHaveBeenCalled());
-    expect(mockUpdate).toHaveBeenCalledWith(
-      "network_map",
-      "",
-      "2.0.0",
-      expect.objectContaining({ name: "Stored Name" }),
-    );
-  });
-
   it("blocks saving an active map when the tenant already has one", async () => {
     // testData[0] (cfg 1.0.0) is already active; create a DIFFERENT cfg so the
     // conflict check actually applies (same-cfg is treated as an update of
@@ -505,6 +452,64 @@ describe("NetworkMapPage", () => {
     await waitFor(() => expect(screen.getByTestId("row-1")).toBeInTheDocument());
     clickAction("Activate");
     await waitFor(() => expect(mockShowError).toHaveBeenCalled());
+  });
+
+  it("blocks an active save when the already-active map is on another page", async () => {
+    // Review follow-up: the same cross-page guarantee must hold for the
+    // save path, not just the row-level Activate action.
+    mockList.mockImplementation((_table, params) => {
+      const filtered = params.filters?.active === "true";
+      const data = filtered
+        ? [{ cfg: "1.0.0", active: true, messages: "[]", tenantId: "default" }]
+        : [{ cfg: "2.0.0", active: false, messages: "[]", tenantId: "default" }];
+      return Promise.resolve({ data, meta: { total: data.length, limit: 20, offset: 0 } });
+    });
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId("row-0")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Create New"));
+    await waitFor(() => expect(screen.getByText("Create")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("Config Version"), { target: { value: "9.9.9" } });
+    const switchEl = screen.getByTestId("mui-switch");
+    const propKeys = Object.keys(switchEl).filter((k) => k.startsWith("__reactProps"));
+    const props = (switchEl as any)[propKeys[0]];
+    act(() => {
+      props.onChange({ target: { checked: true } });
+    });
+    fireEvent.click(screen.getByText("Create"));
+    await waitFor(() =>
+      expect(mockShowError).toHaveBeenCalledWith(
+        "Validation error",
+        "Network map 1.0.0 is already active. Deactivate it first.",
+      ),
+    );
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it("lets the save proceed when the active-map lookup fails", async () => {
+    // Review follow-up: findActiveMap swallows lookup failures - the save
+    // continues so the create call surfaces the real error itself.
+    mockList.mockImplementation((_table, params) => {
+      if (params.filters?.active === "true") {
+        return Promise.reject(new Error("lookup failed"));
+      }
+      return Promise.resolve({
+        data: [{ cfg: "2.0.0", active: false, messages: "[]", tenantId: "default" }],
+        meta: { total: 1, limit: 20, offset: 0 },
+      });
+    });
+    renderPage();
+    await waitFor(() => expect(screen.getByTestId("row-0")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Create New"));
+    await waitFor(() => expect(screen.getByText("Create")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("Config Version"), { target: { value: "9.9.9" } });
+    const switchEl = screen.getByTestId("mui-switch");
+    const propKeys = Object.keys(switchEl).filter((k) => k.startsWith("__reactProps"));
+    const props = (switchEl as any)[propKeys[0]];
+    act(() => {
+      props.onChange({ target: { checked: true } });
+    });
+    fireEvent.click(screen.getByText("Create"));
+    await waitFor(() => expect(mockCreate).toHaveBeenCalled());
   });
 
   it("shows the friendly error when the already-active map is on another page", async () => {

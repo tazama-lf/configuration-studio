@@ -75,9 +75,18 @@ describe('validateConfigPayload', () => {
       expect(() => validateConfigPayload('network_map', documentedNetworkMapPayload)).not.toThrow();
     });
 
-    it('accepts a network map without the optional active/name fields', () => {
+    it('accepts a network map without the optional active field', () => {
       expect(() =>
         validateConfigPayload('network_map', { cfg: '1.0.0', messages: [] }),
+      ).not.toThrow();
+    });
+
+    it('accepts a network map that carries an extra name field (tolerated, not required)', () => {
+      // `name` is not part of the NetworkMap schema; unknown properties are
+      // tolerated here (and stripped by admin-service), so a payload that
+      // includes one is still accepted.
+      expect(() =>
+        validateConfigPayload('network_map', { cfg: '1.0.0', name: 'Map', messages: [] }),
       ).not.toThrow();
     });
 
@@ -174,7 +183,6 @@ describe('validateConfigPayload', () => {
     it.each([
       ['messages', { messages: {} }],
       ['active', { active: 'yes' }],
-      ['name', { name: 12 }],
       ['cfg', { cfg: 1 }],
     ])('rejects an invalid %s', (_field, override) => {
       expect(() =>
