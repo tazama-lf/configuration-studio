@@ -6,6 +6,21 @@ End-to-end tests for the Tazama Config Studio frontend using [Playwright](https:
 
 1. **Backend API** running on `http://localhost:3015`
 2. **Frontend dev server** running on `http://localhost:5176`
+3. **Test credentials** exported as environment variables (no credentials are stored in the repo):
+
+```bash
+# PowerShell
+$env:E2E_USER='your-test-user@example.org'
+$env:E2E_PASSWORD='your-test-password'
+
+# bash
+export E2E_USER='your-test-user@example.org'
+export E2E_PASSWORD='your-test-password'
+```
+
+The suite fails fast with a clear error when either variable is missing. In CI, provide them as secrets.
+
+> **Login rate limit vs. the E2E suite.** The backend throttles `POST /auth/login` to `LOGIN_RATE_LIMIT` requests (default **5**) per `LOGIN_RATE_TTL_MS` window (default **60000 ms**) per client IP (`backend/src/auth/auth.module.ts`). The E2E suite runs serially from a single IP and each CRUD spec calls `login()` in `beforeEach`, so a full run sends well over 5 logins — past the limit the backend returns **429**, the login form never navigates, and `login()` in `frontend/e2e/helpers.ts` times out after 30s. When targeting an isolated test backend, raise the limit (e.g. `LOGIN_RATE_LIMIT=1000`) or reuse a single authenticated session instead of logging in per test. Leave the production limit unchanged.
 
 ```bash
 # From the frontend directory
@@ -69,10 +84,7 @@ npm run e2e:report
 
 ## Test Credentials
 
-Tests use the credentials stored in repository memory:
-
-- **Email:** `tazama-user@tazama.org`
-- **Password:** `password`
+Tests read credentials from the `E2E_USER` and `E2E_PASSWORD` environment variables — no credentials are stored in the repository. Export them before running the suite (see Prerequisites); the run fails fast with a clear error when either is missing.
 
 ## Test Structure
 

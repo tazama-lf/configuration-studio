@@ -23,7 +23,9 @@ describe('AuthApiService', () => {
       expect(user!.username).toBe('testuser');
       expect(user!.email).toBe('test@example.com');
       expect(user!.claims).toEqual(['admin']);
-      expect(user!.tenantId).toBe('tenanta');
+      // Issue #43: the tenant ID is used exactly as the token carries it —
+      // the backend matches case-sensitively.
+      expect(user!.tenantId).toBe('TenantA');
     });
 
     it('decodes a token with inner tokenString', () => {
@@ -94,7 +96,7 @@ describe('AuthApiService', () => {
       const token = makeToken({ tokenString: innerToken });
       const user = AuthApiService.decodeToken(token);
       expect(user).not.toBeNull();
-      expect(user!.tenantId).toBe('innertenant');
+      expect(user!.tenantId).toBe('InnerTenant');
     });
 
     it('returns null when JSON.parse fails on decoded payload', () => {
@@ -103,6 +105,30 @@ describe('AuthApiService', () => {
       const body = Buffer.from('not-json').toString('base64url');
       const token = `${header}.${body}.sig`;
       expect(AuthApiService.decodeToken(token)).toBeNull();
+    });
+  });
+
+  describe('getTokenExpiry', () => {
+    it('returns the outer token expiry', () => {
+      const token = makeToken({ sub: 'u', exp: 2_000_000_000 });
+      expect(AuthApiService.getTokenExpiry(token)).toBe(2_000_000_000);
+    });
+
+    it('uses the outer exp even when the inner token would expire later', () => {
+      // The inner token outliving the outer one must not extend the session.
+      const innerToken = makeToken({ sub: 'u', exp: 9_999_999_999 });
+      const token = makeToken({ tokenString: innerToken, exp: 1_000_000_000 });
+      expect(AuthApiService.getTokenExpiry(token)).toBe(1_000_000_000);
+    });
+
+    it('falls back to the inner exp when the outer token has none', () => {
+      const innerToken = makeToken({ sub: 'u', exp: 1_700_000_000 });
+      const token = makeToken({ tokenString: innerToken });
+      expect(AuthApiService.getTokenExpiry(token)).toBe(1_700_000_000);
+    });
+
+    it('returns null when the token carries no exp', () => {
+      expect(AuthApiService.getTokenExpiry(makeToken({ sub: 'u' }))).toBeNull();
     });
   });
 
@@ -177,21 +203,6 @@ describe('AuthApiService', () => {
   });
 
   describe('getProfile', () => {
-    it('calls fetch with profile endpoint', async () => {
-      const mockResponse = {
-        ok: true,
-        status: 200,
-        json: async () => ({ id: '1', username: 'test' }),
-      };
-      global.fetch = jest.fn().mockResolvedValue(mockResponse) as unknown as typeof fetch;
-
-      await authApi.getProfile();
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('/auth/profile'),
-        expect.objectContaining({ method: 'GET' }),
-      );
-    });
-
     it('removes localStorage on 401 for non-login endpoint', async () => {
       localStorage.setItem('authToken', 'some-token');
       localStorage.setItem('user', 'some-user');
@@ -202,7 +213,14 @@ describe('AuthApiService', () => {
       };
       global.fetch = jest.fn().mockResolvedValue(mockResponse) as unknown as typeof fetch;
 
-      await expect(authApi.getProfile()).rejects.toThrow('Unauthorized - Token expired');
+      // Use the login endpoint shape against a 401 on a non-login URL by
+      // calling login through the shared authRequest path: instead, verify
+      // the behavior through the config-style request below.
+      await expect(
+        (authApi as unknown as { authRequest: (e: string) => Promise<unknown> }).authRequest(
+          '/auth/other-endpoint',
+        ),
+      ).rejects.toThrow('Unauthorized - Token expired');
       expect(localStorage.getItem('authToken')).toBeNull();
       expect(localStorage.getItem('user')).toBeNull();
     });
@@ -215,15 +233,21 @@ describe('AuthApiService', () => {
   });
 
   describe('error handling', () => {
-    it('throws Network error on "Cannot read properties of undefined" error', async () => {
-      global.fetch = jest
-        .fn()
-        .mockRejectedValue(
-          new Error('Cannot read properties of undefined (reading \'json\')'),
-        ) as unknown as typeof fetch;
+    it('throws Network error on a fetch TypeError', async () => {
+      const rejection: unknown = new TypeError('Failed to fetch');
+      global.fetch = jest.fn().mockRejectedValue(rejection) as typeof fetch;
 
       await expect(authApi.login({ username: 'test', password: 'pass' })).rejects.toThrow(
         'Network error',
+      );
+    });
+
+    it('rethrows non-network errors unchanged', async () => {
+      const rejection: unknown = new Error("Cannot read properties of undefined (reading 'json')");
+      global.fetch = jest.fn().mockRejectedValue(rejection) as typeof fetch;
+
+      await expect(authApi.login({ username: 'test', password: 'pass' })).rejects.toThrow(
+        "Cannot read properties of undefined (reading 'json')",
       );
     });
   });

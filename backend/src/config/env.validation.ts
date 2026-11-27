@@ -1,5 +1,5 @@
 import { plainToClass } from 'class-transformer';
-import { IsEnum, IsString, IsOptional, Matches, validateSync } from 'class-validator';
+import { IsEnum, IsInt, IsString, IsOptional, Matches, Min, validateSync } from 'class-validator';
 
 // A required value must contain at least one non-whitespace character:
 // @IsNotEmpty() alone accepts whitespace-only strings like "   ", which then
@@ -56,6 +56,51 @@ class EnvironmentVariables {
     message: 'HTTP_TIMEOUT_MS must be a positive integer in milliseconds (max 999999, ~16 minutes)',
   })
   HTTP_TIMEOUT_MS?: string;
+
+  // Positive integers only: IsNumber()/Min() would accept 0 and negatives, and
+  // class-transformer turns an empty string into 0 — so an empty
+  // LOGIN_RATE_LIMIT= would reject every login and an empty LOGIN_RATE_TTL_MS=
+  // would disable throttling. Omitting them keeps the defaults.
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  LOGIN_RATE_TTL_MS?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  LOGIN_RATE_LIMIT?: number;
+
+  /**
+   * Claim-based authorization. Comma-separated claim lists (ANY-of
+   * semantics) applied by the TazamaAuthGuard/ConfigClaimsGuard to the config
+   * routes:
+   *   CONFIG_READ_CLAIMS     - GET routes
+   *   CONFIG_WRITE_CLAIMS    - POST/PUT/DELETE routes
+   *   CONFIG_ACTIVATE_CLAIMS - activate/deactivate/reload routes
+   * Empty or unset = no claim gating (any authenticated user passes), which
+   * preserves today's behavior until the auth team publishes claim names.
+   */
+  @IsOptional()
+  @IsString()
+  CONFIG_READ_CLAIMS?: string;
+
+  @IsOptional()
+  @IsString()
+  CONFIG_WRITE_CLAIMS?: string;
+
+  @IsOptional()
+  @IsString()
+  CONFIG_ACTIVATE_CLAIMS?: string;
+
+  /**
+   * Express `trust proxy` setting for the deployment topology: behind a
+   * load balancer, request.ip is the proxy's IP unless this is configured.
+   * Values: 'true', a hop count ('1'), a subnet/IP, or comma-separated list.
+   */
+  @IsOptional()
+  @IsString()
+  TRUST_PROXY?: string;
 }
 
 export const validate = (config: Record<string, unknown>): EnvironmentVariables => {

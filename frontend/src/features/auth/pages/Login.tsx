@@ -72,14 +72,7 @@ export const Login: React.FC = () => {
     try {
       const success = await login(data.username, data.password);
       if (success) {
-        const token = localStorage.getItem("authToken");
-        if (token) {
-          const userData = AuthApiService.decodeToken(token);
-          void userData;
-          navigate("/dashboard", { replace: true });
-        } else {
-          navigate("/dashboard", { replace: true });
-        }
+        navigate("/dashboard", { replace: true });
       } else {
         setError("Invalid credentials. Please try again.");
       }

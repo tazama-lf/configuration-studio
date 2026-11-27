@@ -29,6 +29,7 @@ import Loader from "../../../shared/components/ui/Loader";
 import { useToast } from "../../../shared/providers/ToastProvider";
 import { useAuth } from "../../auth/contexts/AuthContext";
 import { configApi, type PaginatedResponse } from "../services/configApi";
+import { useTenant } from "../useTenant";
 import NetworkMapConfigEditor from "../components/NetworkMapConfigEditor";
 import JsonPreviewPanel from "../components/JsonPreviewPanel";
 import { isValidConfigVersion } from "../../../utils/validation";
@@ -49,7 +50,7 @@ const PAGE_LIMIT = 20;
 const NetworkMapPage: React.FC = () => {
   const { showSuccess, showError } = useToast();
   const { user } = useAuth();
-  const tenantId = user?.tenantId ?? "default";
+  const { tenantId, missingTenant } = useTenant();
   const [records, setRecords] = useState<NetworkMapRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(0);
@@ -75,7 +76,7 @@ const NetworkMapPage: React.FC = () => {
     cfg: "1.0.0",
     active: true,
     messages: "[]",
-    tenantId: "default",
+    tenantId: "",
   });
   const [previewJson, setPreviewJson] = useState("");
 
@@ -233,6 +234,12 @@ const NetworkMapPage: React.FC = () => {
     // a single object (for example a user record) instead of an array.
     if (!Array.isArray(parsedMessages)) {
       showError("Validation error", "Messages must be a JSON array (e.g. [] or [{ id: 'x', cfg: '1.0.0', ... }])");
+      return;
+    }
+    // A token without a tenant must not fall back to a "default" tenant —
+    // the write would target the wrong tenant's data (issue #43).
+    if (missingTenant) {
+      showError("Validation error", "Your session has no tenant context. Please log in again.");
       return;
     }
     // Busy state covers the active-map lookup so a double-click cannot

@@ -18,6 +18,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ViewIcon from "@mui/icons-material/Visibility";
 import type { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
+import { useTenant } from "../useTenant";
 import CustomTable from "../../../common/Tables/CustomTable";
 import Loader from "../../../shared/components/ui/Loader";
 import { useToast } from "../../../shared/providers/ToastProvider";
@@ -69,8 +70,8 @@ export function normalizeTypologyConfig(parsedConfig: Record<string, unknown>): 
 const TypologyPage: React.FC = () => {
   const { showSuccess, showError } = useToast();
   const { user } = useAuth();
-  const tenantId = user?.tenantId ?? "default";
-  const tenantPrefix = `${tenantId}-typology-`;
+  const { tenantId, missingTenant } = useTenant();
+  const tenantPrefix = tenantId !== undefined ? `${tenantId}-typology-` : '';
   const [records, setRecords] = useState<TypologyRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(0);
@@ -185,6 +186,12 @@ const TypologyPage: React.FC = () => {
     }
     const fullId = dialogMode === "create" ? `${tenantPrefix}${formData.id}` : formData.id;
     const { rules, expression, workflow } = normalizeTypologyConfig(parsedConfig);
+    // A token without a tenant must not fall back to a "default" tenant —
+    // the write would target the wrong tenant's data (issue #43).
+    if (missingTenant) {
+      showError("Validation error", "Your session has no tenant context. Please log in again.");
+      return;
+    }
     setActionLoading(true);
     try {
       const payload = {

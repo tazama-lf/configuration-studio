@@ -1,5 +1,5 @@
 import { Reflector } from '@nestjs/core';
-import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { ExecutionContext, UnauthorizedException, ForbiddenException } from '@nestjs/common';
 import * as jwt from 'jsonwebtoken';
 
 jest.mock('jsonwebtoken', () => ({
@@ -118,7 +118,7 @@ describe('TazamaAuthGuard', () => {
       expect(result).toBe(true);
     });
 
-    it('should throw when required claims are missing', () => {
+    it('should throw 403 Forbidden when required claims are missing', () => {
       (validateTokenAndClaims as jest.Mock).mockReturnValue({
         'config:read': false,
       });
@@ -128,7 +128,8 @@ describe('TazamaAuthGuard', () => {
         authorization: `Bearer ${validToken}`,
       });
 
-      expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
+      // Authenticated but not authorized: 403, not 401 (issue #41).
+      expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
     });
 
     it('should return true when any-claims match is found', () => {
@@ -142,7 +143,7 @@ describe('TazamaAuthGuard', () => {
       expect(result).toBe(true);
     });
 
-    it('should throw when no any-claims match', () => {
+    it('should throw 403 Forbidden when no any-claims match', () => {
       (validateTokenAndClaims as jest.Mock).mockReturnValue({
         'config:read': false,
         'config:admin': false,
@@ -153,7 +154,7 @@ describe('TazamaAuthGuard', () => {
         authorization: `Bearer ${validToken}`,
       });
 
-      expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
+      expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
     });
 
     it('should set request.user with authenticated user data', () => {
@@ -169,6 +170,49 @@ describe('TazamaAuthGuard', () => {
       expect(request.user).toBeDefined();
       expect(request.user.tenantId).toBe('tenant1');
       expect(request.user.userId).toBe('client1');
+    });
+
+    it('should fill actorEmail from the email claim, not preferred_username', () => {
+      mockReflector(false);
+      // Issue #41: both actorEmail and actorName used to read
+      // preferred_username; the email must come from the email claim.
+      const jwt = require('jsonwebtoken');
+      jest.spyOn(jwt, 'decode').mockReturnValue({
+        tenantId: 'tenant1',
+        tokenString: 'inner',
+        preferred_username: 'login-name',
+        email: 'user@example.org',
+      });
+
+      const context = createMockContext({
+        authorization: `Bearer ${validToken}`,
+      });
+
+      guard.canActivate(context);
+      const request = context.switchToHttp().getRequest();
+      expect(request.user.actorEmail).toBe('user@example.org');
+      expect(request.user.actorName).toBe('login-name');
+
+      jest.restoreAllMocks();
+    });
+
+    it('should fall back to preferred_username for actorEmail when no email claim exists', () => {
+      mockReflector(false);
+      const jwt = require('jsonwebtoken');
+      jest.spyOn(jwt, 'decode').mockReturnValue({
+        tenantId: 'tenant1',
+        preferred_username: 'login-name',
+      });
+
+      const context = createMockContext({
+        authorization: `Bearer ${validToken}`,
+      });
+
+      guard.canActivate(context);
+      const request = context.switchToHttp().getRequest();
+      expect(request.user.actorEmail).toBe('login-name');
+
+      jest.restoreAllMocks();
     });
 
     it('should extract sourceIP from request.ip', () => {

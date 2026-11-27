@@ -241,14 +241,16 @@ describe('ConfigProxyService', () => {
       expect(call?.[1]).toContain(encodeURIComponent('cfg@2'));
     });
 
-    it('should inject updDtTm on update and not overwrite creDtTm if present', async () => {
+    it('should inject updDtTm on update and drop a caller-supplied creDtTm the store cannot confirm', async () => {
+      // Issue #42: creDtTm always comes from the stored record. Here the
+      // store returns no creDtTm, so the supplied value must be dropped.
       const body: Record<string, unknown> = { name: 'original', creDtTm: '2020-01-01T00:00:00.000Z' };
       mockAdminServiceClient.executeHttpRequest.mockResolvedValue({});
 
       await service.update('rule', 'rule-1', '1.0.0', body, 'token', 'tenant-1');
 
       expect(sentBody()).toHaveProperty('updDtTm');
-      expect(sentBody().creDtTm).toBe('2020-01-01T00:00:00.000Z');
+      expect(sentBody()).not.toHaveProperty('creDtTm');
       expect(sentBody()).toHaveProperty('tenantId', 'tenant-1');
     });
 
@@ -306,13 +308,18 @@ describe('ConfigProxyService', () => {
       );
     });
 
-    it('should not read the stored record when the caller supplies creDtTm', async () => {
-      mockAdminServiceClient.executeHttpRequest.mockResolvedValue({});
+    it('should replace a caller-supplied creDtTm with the stored record value', async () => {
+      // Issue #42: creDtTm is audit data — a client must never be able to
+      // rewrite it, so even a supplied value is overwritten from the store.
+      mockAdminServiceClient.executeHttpRequest.mockImplementation((method: string) =>
+        method === 'GET'
+          ? Promise.resolve({ id: 'rule-1', creDtTm: '2019-01-01T00:00:00.000Z' })
+          : Promise.resolve({ updated: true }),
+      );
 
       await service.update('rule', 'rule-1', '1.0.0', { creDtTm: '2020-01-01T00:00:00.000Z' }, 'token', 'tenant-1');
 
-      const methods = mockAdminServiceClient.executeHttpRequest.mock.calls.map((c) => c[0]);
-      expect(methods).toEqual(['PUT']);
+      expect(sentBody().creDtTm).toBe('2019-01-01T00:00:00.000Z');
     });
 
     it('should preserve creDtTm from the stored record when the caller omits it', async () => {
@@ -358,13 +365,17 @@ describe('ConfigProxyService', () => {
       expect(sentBody().creDtTm).toBe('stored-creation-time');
     });
 
-    it('should not read the stored record when a network map update supplies creDtTm', async () => {
+    it('reads the stored record and ignores a caller-supplied creDtTm for a network map update', async () => {
       mockAdminServiceClient.executeHttpRequest.mockResolvedValue({});
 
       await service.update('network_map', 'ignored-id', '2.0.0', { creDtTm: '2020-01-01T00:00:00.000Z' }, 'token', 'tenant-1');
 
       const methods = mockAdminServiceClient.executeHttpRequest.mock.calls.map((c) => c[0]);
-      expect(methods).toEqual(['PUT']);
+      // Issue #42: creDtTm is audit data taken from the stored record, so the
+      // store is always read and the caller-supplied value is dropped when the
+      // store has none — it is never sent back verbatim.
+      expect(methods).toEqual(['GET', 'PUT']);
+      expect(sentBody()).not.toHaveProperty('creDtTm');
     });
 
     it('rejects the update (503) when the preservation read fails, so creDtTm is not wiped', async () => {
@@ -394,15 +405,44 @@ describe('ConfigProxyService', () => {
       expect(result).toEqual({ updated: true });
     });
 
-    it('rethrows a deliberate 4xx preservation-read failure as-is (not a 503)', async () => {
-      // An expired session (401) or permission error (403) must surface as
-      // itself, not be masked as a 503 "please retry" that can never succeed.
+    it('proceeds with the write when the preservation read is forbidden (write-only caller)', async () => {
+      // Issue #41 separates read and write claims: a caller that may write but
+      // not read the record must not have an authorized update blocked by the
+      // internal preservation read.
       const forbidden = new HttpException({ message: 'forbidden', statusCode: 403 }, 403);
       mockAdminServiceClient.executeHttpRequest.mockImplementation((method: string) =>
         method === 'GET' ? Promise.reject(forbidden) : Promise.resolve({ updated: true }),
       );
 
-      await expect(service.update('network_map', 'ignored-id', '2.0.0', { messages: [] }, 'token', 'tenant-1')).rejects.toBe(forbidden);
+      const result = await service.update('network_map', 'ignored-id', '2.0.0', { messages: [] }, 'token', 'tenant-1');
+
+      expect(result).toEqual({ updated: true });
+      const methods = mockAdminServiceClient.executeHttpRequest.mock.calls.map((c) => c[0]);
+      expect(methods).toEqual(['GET', 'PUT']);
+      expect(sentBody()).not.toHaveProperty('creDtTm');
+    });
+
+    it('drops a caller-supplied creDtTm when the read is forbidden (write-only caller)', async () => {
+      const forbidden = new HttpException({ message: 'forbidden', statusCode: 403 }, 403);
+      mockAdminServiceClient.executeHttpRequest.mockImplementation((method: string) =>
+        method === 'GET' ? Promise.reject(forbidden) : Promise.resolve({}),
+      );
+
+      await service.update('rule', 'rule-1', '1.0.0', { name: 'x', creDtTm: '2020-01-01T00:00:00.000Z' }, 'token', 'tenant-1');
+
+      expect(sentBody()).not.toHaveProperty('creDtTm');
+      expect(sentBody()).toHaveProperty('name', 'x');
+    });
+
+    it('rethrows a 401 preservation-read failure as-is (not a 503)', async () => {
+      // A stale/expired session is unrecoverable for this request and must
+      // surface as itself, not be masked as a retryable 503.
+      const unauthorized = new HttpException({ message: 'unauthorized', statusCode: 401 }, 401);
+      mockAdminServiceClient.executeHttpRequest.mockImplementation((method: string) =>
+        method === 'GET' ? Promise.reject(unauthorized) : Promise.resolve({ updated: true }),
+      );
+
+      await expect(service.update('network_map', 'ignored-id', '2.0.0', { messages: [] }, 'token', 'tenant-1')).rejects.toBe(unauthorized);
       const methods = mockAdminServiceClient.executeHttpRequest.mock.calls.map((c) => c[0]);
       expect(methods).toEqual(['GET']);
     });

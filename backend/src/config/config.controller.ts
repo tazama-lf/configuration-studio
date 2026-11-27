@@ -15,6 +15,7 @@ import {
 import { ConfigProxyService, type ConfigTable } from './config-proxy.service';
 import { validateConfigPayload } from './dto/config-payload.validator';
 import { TazamaAuthGuard } from '../auth/tazama-auth.guard';
+import { ConfigClaimsGuard } from './config-claims.guard';
 import { User } from '../auth/user.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
 
@@ -26,7 +27,7 @@ const TABLES: Partial<Record<string, ConfigTable>> = {
 };
 
 @Controller('config')
-@UseGuards(TazamaAuthGuard)
+@UseGuards(TazamaAuthGuard, ConfigClaimsGuard)
 export class ConfigController {
   constructor(private readonly configProxyService: ConfigProxyService) {}
 

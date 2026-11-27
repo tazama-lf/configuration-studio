@@ -1,5 +1,12 @@
 import { Test, type TestingModule } from '@nestjs/testing';
-import { UnauthorizedException, ServiceUnavailableException, InternalServerErrorException } from '@nestjs/common';
+import {
+  UnauthorizedException,
+  ServiceUnavailableException,
+  InternalServerErrorException,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 
@@ -14,6 +21,7 @@ describe('AuthController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
+      imports: [ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 5 }])],
       providers: [{ provide: AuthService, useValue: mockAuthService }],
     }).compile();
 
@@ -69,27 +77,39 @@ describe('AuthController', () => {
     });
 
     it('should rethrow UnauthorizedException', async () => {
-      mockAuthService.login.mockRejectedValue(new UnauthorizedException('Invalid credentials'));
+      mockAuthService.login.mockRejectedValue(
+        new UnauthorizedException('Invalid credentials'),
+      );
 
-      await expect(controller.login(validBody)).rejects.toThrow(UnauthorizedException);
+      await expect(controller.login(validBody)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should rethrow ServiceUnavailableException', async () => {
-      mockAuthService.login.mockRejectedValue(new ServiceUnavailableException('Service unavailable'));
+      mockAuthService.login.mockRejectedValue(
+        new ServiceUnavailableException('Service unavailable'),
+      );
 
-      await expect(controller.login(validBody)).rejects.toThrow(ServiceUnavailableException);
+      await expect(controller.login(validBody)).rejects.toThrow(
+        ServiceUnavailableException,
+      );
     });
 
     it('should throw InternalServerErrorException for unknown errors', async () => {
       mockAuthService.login.mockRejectedValue(new Error('Unknown error'));
 
-      await expect(controller.login(validBody)).rejects.toThrow(InternalServerErrorException);
+      await expect(controller.login(validBody)).rejects.toThrow(
+        InternalServerErrorException,
+      );
     });
 
     it('should throw InternalServerErrorException for non-Error objects', async () => {
       mockAuthService.login.mockRejectedValue('string error');
 
-      await expect(controller.login(validBody)).rejects.toThrow(InternalServerErrorException);
+      await expect(controller.login(validBody)).rejects.toThrow(
+        InternalServerErrorException,
+      );
     });
 
     it('should call authService.login with username and password', async () => {
@@ -101,7 +121,10 @@ describe('AuthController', () => {
 
       await controller.login(validBody);
 
-      expect(authService.login).toHaveBeenCalledWith('test@example.com', 'password123');
+      expect(authService.login).toHaveBeenCalledWith(
+        'test@example.com',
+        'password123',
+      );
     });
 
     it('should rethrow UnauthorizedException with correct message', async () => {
@@ -130,6 +153,26 @@ describe('AuthController', () => {
       }
     });
 
+    it('should pass the 429 locked-account response through, not turn it into a 500', async () => {
+      // Issue #40: a locked account (429) used to fall into the catch-all
+      // branch and surface as a 500 Internal Server Error.
+      const error = new HttpException(
+        { message: 'Account is locked. Too many failed attempts.', statusCode: 429 },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+      mockAuthService.login.mockRejectedValue(error);
+
+      try {
+        await controller.login(validBody);
+        fail('Should have thrown');
+      } catch (e) {
+        expect(e).toBeInstanceOf(HttpException);
+        expect((e as HttpException).getStatus()).toBe(HttpStatus.TOO_MANY_REQUESTS);
+        const response = (e as HttpException).getResponse() as { message: string };
+        expect(response.message).toBe('Account is locked. Too many failed attempts.');
+      }
+    });
+
     it('should throw InternalServerErrorException for Error instance', async () => {
       mockAuthService.login.mockRejectedValue(new Error('Some error'));
 
@@ -144,13 +187,17 @@ describe('AuthController', () => {
     it('should throw InternalServerErrorException for null error', async () => {
       mockAuthService.login.mockRejectedValue(null);
 
-      await expect(controller.login(validBody)).rejects.toThrow(InternalServerErrorException);
+      await expect(controller.login(validBody)).rejects.toThrow(
+        InternalServerErrorException,
+      );
     });
 
     it('should throw InternalServerErrorException for object error', async () => {
       mockAuthService.login.mockRejectedValue({ code: 500 });
 
-      await expect(controller.login(validBody)).rejects.toThrow(InternalServerErrorException);
+      await expect(controller.login(validBody)).rejects.toThrow(
+        InternalServerErrorException,
+      );
     });
 
     it('should log warn when UnauthorizedException is thrown', async () => {
@@ -164,15 +211,15 @@ describe('AuthController', () => {
       expect(warnSpy).toHaveBeenCalled();
     });
 
-    it('should log error when ServiceUnavailableException is thrown', async () => {
+    it('should log warn when ServiceUnavailableException is thrown', async () => {
       const error = new ServiceUnavailableException('Service unavailable');
       mockAuthService.login.mockRejectedValue(error);
 
-      const errorSpy = jest.fn();
-      (controller as any).logger = { error: errorSpy };
+      const warnSpy = jest.fn();
+      (controller as any).logger = { warn: warnSpy };
 
       await expect(controller.login(validBody)).rejects.toThrow(ServiceUnavailableException);
-      expect(errorSpy).toHaveBeenCalled();
+      expect(warnSpy).toHaveBeenCalled();
     });
 
     it('should log error for unexpected errors', async () => {

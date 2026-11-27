@@ -13,6 +13,7 @@ describe('ConfigApiService', () => {
         ok: true,
         status: 200,
         json: async () => mockData,
+        text: async () => JSON.stringify(mockData,),
       }) as unknown as typeof fetch;
 
       const result = await configApi.list('rule', { limit: 20, offset: 0 });
@@ -29,6 +30,7 @@ describe('ConfigApiService', () => {
         ok: true,
         status: 200,
         json: async () => mockData,
+        text: async () => JSON.stringify(mockData,),
       }) as unknown as typeof fetch;
 
       await configApi.list('typology', { limit: 20, offset: 0, sort: 'id', order: 'ASC' });
@@ -43,6 +45,7 @@ describe('ConfigApiService', () => {
         ok: true,
         status: 200,
         json: async () => mockData,
+        text: async () => JSON.stringify(mockData,),
       }) as unknown as typeof fetch;
 
       await configApi.list('network_map', { limit: 'all', offset: 0, filters: { active: 'true' } });
@@ -56,6 +59,7 @@ describe('ConfigApiService', () => {
         ok: true,
         status: 200,
         json: async () => mockData,
+        text: async () => JSON.stringify(mockData,),
       }) as unknown as typeof fetch;
 
       await configApi.list('rule', { limit: 20, offset: 0, filters: { active: '' } });
@@ -68,6 +72,7 @@ describe('ConfigApiService', () => {
         ok: false,
         status: 401,
         json: async () => ({}),
+        text: async () => JSON.stringify(({}),),
       }) as unknown as typeof fetch;
 
       await expect(configApi.list('rule', { limit: 20, offset: 0 })).rejects.toThrow(
@@ -80,6 +85,7 @@ describe('ConfigApiService', () => {
         ok: false,
         status: 500,
         json: async () => ({ message: 'Server error' }),
+        text: async () => JSON.stringify(({ message: 'Server error' }),),
       }) as unknown as typeof fetch;
 
       await expect(configApi.list('rule', { limit: 20, offset: 0 })).rejects.toThrow('Server error');
@@ -90,6 +96,7 @@ describe('ConfigApiService', () => {
         ok: false,
         status: 500,
         json: async () => { throw new Error('parse error'); },
+        text: async () => { throw new Error('parse error'); },
       }) as unknown as typeof fetch;
 
       await expect(configApi.list('rule', { limit: 20, offset: 0 })).rejects.toThrow(
@@ -104,6 +111,7 @@ describe('ConfigApiService', () => {
         ok: true,
         status: 200,
         json: async () => ({ id: '1', cfg: '1.0.0' }),
+        text: async () => JSON.stringify(({ id: '1', cfg: '1.0.0' }),),
       }) as unknown as typeof fetch;
 
       await configApi.getById('rule', 'testid', '1.0.0');
@@ -116,6 +124,7 @@ describe('ConfigApiService', () => {
         ok: true,
         status: 200,
         json: async () => ({ cfg: '1.0.0' }),
+        text: async () => JSON.stringify(({ cfg: '1.0.0' }),),
       }) as unknown as typeof fetch;
 
       await configApi.getById('network_map', 'testid', '1.0.0');
@@ -129,6 +138,7 @@ describe('ConfigApiService', () => {
         ok: true,
         status: 200,
         json: async () => ({ id: '1', cfg: '1.0.0' }),
+        text: async () => JSON.stringify(({ id: '1', cfg: '1.0.0' }),),
       }) as unknown as typeof fetch;
 
       await configApi.getById('typology', 'testid', '1.0.0');
@@ -143,6 +153,7 @@ describe('ConfigApiService', () => {
         ok: true,
         status: 201,
         json: async () => ({ id: '1' }),
+        text: async () => JSON.stringify(({ id: '1' }),),
       }) as unknown as typeof fetch;
 
       await configApi.create('rule', { id: 'test' });
@@ -159,6 +170,7 @@ describe('ConfigApiService', () => {
         ok: true,
         status: 200,
         json: async () => ({ id: '1' }),
+        text: async () => JSON.stringify(({ id: '1' }),),
       }) as unknown as typeof fetch;
 
       await configApi.update('rule', 'testid', '1.0.0', { id: 'test' });
@@ -171,6 +183,7 @@ describe('ConfigApiService', () => {
         ok: true,
         status: 200,
         json: async () => ({ cfg: '1.0.0' }),
+        text: async () => JSON.stringify(({ cfg: '1.0.0' }),),
       }) as unknown as typeof fetch;
 
       await configApi.update('network_map', 'testid', '1.0.0', { cfg: '1.0.0' });
@@ -183,6 +196,7 @@ describe('ConfigApiService', () => {
         ok: true,
         status: 200,
         json: async () => ({ id: '1' }),
+        text: async () => JSON.stringify(({ id: '1' }),),
       }) as unknown as typeof fetch;
 
       await configApi.update('typology', 'testid', '1.0.0', { id: 'test' });
@@ -197,6 +211,7 @@ describe('ConfigApiService', () => {
         ok: true,
         status: 200,
         json: async () => ({ success: true }),
+        text: async () => JSON.stringify(({ success: true }),),
       }) as unknown as typeof fetch;
 
       const result = await configApi.delete('rule', 'testid', '1.0.0');
@@ -212,6 +227,7 @@ describe('ConfigApiService', () => {
         ok: true,
         status: 204,
         json: async () => { throw new Error('no body'); },
+        text: async () => { throw new Error('no body'); },
       }) as unknown as typeof fetch;
 
       const result = await configApi.delete('rule', 'testid', '1.0.0');
@@ -223,6 +239,7 @@ describe('ConfigApiService', () => {
         ok: false,
         status: 401,
         json: async () => ({}),
+        text: async () => JSON.stringify(({}),),
       }) as unknown as typeof fetch;
 
       await expect(configApi.delete('rule', 'testid', '1.0.0')).rejects.toThrow(
@@ -235,6 +252,7 @@ describe('ConfigApiService', () => {
         ok: false,
         status: 500,
         json: async () => ({ message: 'Delete failed' }),
+        text: async () => JSON.stringify(({ message: 'Delete failed' }),),
       }) as unknown as typeof fetch;
 
       await expect(configApi.delete('rule', 'testid', '1.0.0')).rejects.toThrow('Delete failed');
@@ -245,6 +263,7 @@ describe('ConfigApiService', () => {
         ok: true,
         status: 200,
         json: async () => ({ success: true }),
+        text: async () => JSON.stringify(({ success: true }),),
       }) as unknown as typeof fetch;
 
       await configApi.delete('network_map', 'testid', '1.0.0');
@@ -258,6 +277,7 @@ describe('ConfigApiService', () => {
         ok: false,
         status: 500,
         json: async () => { throw new Error('parse error'); },
+        text: async () => { throw new Error('parse error'); },
       }) as unknown as typeof fetch;
 
       await expect(configApi.delete('rule', 'testid', '1.0.0')).rejects.toThrow(
@@ -272,6 +292,7 @@ describe('ConfigApiService', () => {
         ok: true,
         status: 200,
         json: async () => ({ success: true }),
+        text: async () => JSON.stringify(({ success: true }),),
       }) as unknown as typeof fetch;
 
       await configApi.activateNetworkMap('1.0.0', 'broadcast');
@@ -286,6 +307,7 @@ describe('ConfigApiService', () => {
         ok: true,
         status: 200,
         json: async () => ({}),
+        text: async () => JSON.stringify(({}),),
       }) as unknown as typeof fetch;
 
       await configApi.activateNetworkMap('1.0.0');
@@ -300,6 +322,7 @@ describe('ConfigApiService', () => {
         ok: true,
         status: 200,
         json: async () => ({ success: true }),
+        text: async () => JSON.stringify(({ success: true }),),
       }) as unknown as typeof fetch;
 
       await configApi.deactivateNetworkMap('1.0.0');
@@ -316,6 +339,7 @@ describe('ConfigApiService', () => {
         ok: true,
         status: 200,
         json: async () => ({ success: true }),
+        text: async () => JSON.stringify(({ success: true }),),
       }) as unknown as typeof fetch;
 
       await configApi.reloadNetworkMap('broadcast');
@@ -339,11 +363,51 @@ describe('ConfigApiService', () => {
         ok: true,
         status: 200,
         json: async () => ({ data: [], meta: { total: 0, limit: 20, offset: 0 } }),
+        text: async () => JSON.stringify(({ data: [], meta: { total: 0, limit: 20, offset: 0 } }),),
       }) as unknown as typeof fetch;
 
       await configApi.list('rule', { limit: 20, offset: 0 });
       const headers = (global.fetch as jest.Mock).mock.calls[0][1].headers;
       expect(headers.Authorization).toBe('Bearer test-token');
+    });
+  });
+
+  describe('listAll', () => {
+    it('keeps paging until every record is loaded', async () => {
+      const page1 = {
+        data: Array.from({ length: 100 }, (_, i) => ({ id: `${i}` })),
+        meta: { total: 150, limit: 100, offset: 0 },
+      };
+      const page2 = {
+        data: Array.from({ length: 50 }, (_, i) => ({ id: `${100 + i}` })),
+        meta: { total: 150, limit: 100, offset: 100 },
+      };
+      const asResponse = (body: unknown): Response =>
+        ({ ok: true, status: 200, json: async () => body, text: async () => JSON.stringify(body) }) as unknown as Response;
+      global.fetch = jest
+        .fn()
+        .mockResolvedValueOnce(asResponse(page1))
+        .mockResolvedValueOnce(asResponse(page2)) as unknown as typeof fetch;
+
+      const result = await configApi.listAll('rule');
+      expect(result).toHaveLength(150);
+      expect(global.fetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('throws instead of silently truncating past the page ceiling', async () => {
+      const endless = {
+        data: Array.from({ length: 100 }, (_, i) => ({ id: `${i}` })),
+        // More rows than MAX_PAGES (100) * PAGE_SIZE (100) can return.
+        meta: { total: 1_000_000, limit: 100, offset: 0 },
+      };
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => endless,
+        text: async () => JSON.stringify(endless),
+      }) as unknown as typeof fetch;
+
+      await expect(configApi.listAll('rule')).rejects.toThrow(/more than 10000 rows/);
     });
   });
 });

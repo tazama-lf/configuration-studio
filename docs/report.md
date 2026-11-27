@@ -1,8 +1,8 @@
 # Config Studio vs TMS Configuration DB — Structural Report
 
-**Source of truth:** live Postgres `configuration` DB at `10.0.115.104:5433`
+**Source of truth:** live Postgres `configuration` DB (internal host)
 **Sampled:** all rows — 34 rules, 31 typologies, 2 network maps
-**Under test:** config-studio editor + backend at [config-studio](../home/ak/workspace/config-studio)
+**Under test:** config-studio editor + backend (this repository)
 
 Every payload lives in a `configuration` jsonb column. "REQ" = present in 100% of rows, "OPT" = present in some rows only.
 
@@ -37,7 +37,7 @@ Not present in any of 34 rows:
 |----------------------|------|--------|--------|
 | `id`,`cfg`,`desc`    | REQ  | emitted (id/cfg gated on non-empty) | OK |
 | `tenantId`           | REQ  | emitted only if truthy — risk if unset | LOW-RISK |
-| `creDtTm`, `updDtTm` | REQ  | server-injected on save ([config-proxy.service.ts:159-172](../home/ak/workspace/config-studio/backend/src/config/config-proxy.service.ts#L159-L172)) | OK |
+| `creDtTm`, `updDtTm` | REQ  | server-injected on save ([config-proxy.service.ts (injectTimestamps)](../backend/src/config/config-proxy.service.ts)) | OK |
 | `config.parameters`  | REQ-ish (33/34) | always emitted | OK |
 | `config.exitConditions` | REQ | always emitted | OK |
 | `config.bands`       | conditional | emitted when `configType='bands'` | OK |
@@ -66,7 +66,7 @@ Not present in any of 31 rows:
 
 ### Typology — config-studio diffs
 
-Studio emits ([TypologyConfigEditor.tsx:130-144](../home/ak/workspace/config-studio/frontend/src/features/config/components/TypologyConfigEditor.tsx#L130-L144)):
+Studio emits ([TypologyConfigEditor.tsx:130-144](../frontend/src/features/config/components/TypologyConfigEditor.tsx#L130-L144)):
 ```
 desc, id, cfg, tenantId, workflow{alertThreshold, interdictionThreshold, flowProcessor}, rules, expression
 ```
@@ -104,7 +104,7 @@ Not present in either row:
 
 ### Network map — config-studio diffs
 
-Studio emits ([NetworkMapConfigEditor.tsx:115-122](../home/ak/workspace/config-studio/frontend/src/features/config/components/NetworkMapConfigEditor.tsx#L115-L122)):
+Studio emits ([NetworkMapConfigEditor.tsx:115-122](../frontend/src/features/config/components/NetworkMapConfigEditor.tsx#L115-L122)):
 ```
 cfg, active, messages, tenantId
 ```
@@ -117,7 +117,7 @@ cfg, active, messages, tenantId
 | `updDtTm`                                 | never | server-injected | **EXTRA in studio** |
 | `messages[].{id,cfg,txTp}`                | REQ  | emitted | OK |
 | `messages[].typologies[].{id,cfg,rules}`  | REQ  | emitted | OK |
-| `messages[].typologies[].tenantId`        | never | emitted at [NetworkMapConfigEditor.tsx:151](../home/ak/workspace/config-studio/frontend/src/features/config/components/NetworkMapConfigEditor.tsx#L151) | **EXTRA in studio** |
+| `messages[].typologies[].tenantId`        | never | emitted at [NetworkMapConfigEditor.tsx:151](../frontend/src/features/config/components/NetworkMapConfigEditor.tsx#L151) | **EXTRA in studio** |
 | `rules[].{id,cfg}`                        | REQ  | emitted | OK |
 
 **Network map verdict: additive diffs only.**

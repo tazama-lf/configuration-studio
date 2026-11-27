@@ -103,6 +103,30 @@ describe('env.validation', () => {
       expect(() => validate({ ...validEnv, HTTP_TIMEOUT_MS: '1000000' })).toThrow(/HTTP_TIMEOUT_MS/);
     });
 
+    it('should convert login rate-limit knobs to numbers', () => {
+      const result = validate({
+        ...validEnv,
+        LOGIN_RATE_TTL_MS: '30000',
+        LOGIN_RATE_LIMIT: '10',
+      });
+      expect(result.LOGIN_RATE_TTL_MS).toBe(30000);
+      expect(result.LOGIN_RATE_LIMIT).toBe(10);
+    });
+
+    it('should reject non-numeric login rate-limit knobs', () => {
+      expect(() => validate({ ...validEnv, LOGIN_RATE_LIMIT: 'many' })).toThrow();
+    });
+
+    it('should reject zero or negative login rate-limit knobs at startup', () => {
+      expect(() => validate({ ...validEnv, LOGIN_RATE_LIMIT: '0' })).toThrow(/LOGIN_RATE_LIMIT/);
+      expect(() => validate({ ...validEnv, LOGIN_RATE_LIMIT: '-1' })).toThrow(/LOGIN_RATE_LIMIT/);
+      expect(() => validate({ ...validEnv, LOGIN_RATE_TTL_MS: '0' })).toThrow(/LOGIN_RATE_TTL_MS/);
+    });
+
+    it('should reject a non-integer login rate TTL', () => {
+      expect(() => validate({ ...validEnv, LOGIN_RATE_TTL_MS: '1.5' })).toThrow(/LOGIN_RATE_TTL_MS/);
+    });
+
     it('should accept config with only required fields', () => {
       const result = validate({
         NODE_ENV: 'development',

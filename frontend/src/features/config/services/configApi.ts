@@ -20,6 +20,7 @@ export interface PaginationParams {
 }
 
 const HTTP_UNAUTHORIZED = 401;
+const HTTP_NO_CONTENT = 204;
 
 export class ConfigApiService {
   private readonly baseURL: string;
@@ -51,7 +52,16 @@ export class ConfigApiService {
         errorData.message ?? `HTTP error! status: ${response.status}`,
       );
     }
-    return (await response.json()) as T;
+    // 204 No Content (and empty bodies generally) are successes, not JSON
+    // parse errors — response.json() on an empty body would throw.
+    if (response.status === HTTP_NO_CONTENT) {
+      return undefined as T;
+    }
+    const text = await response.text();
+    if (text.length === 0) {
+      return undefined as T;
+    }
+    return JSON.parse(text) as T;
   }
 
   private static buildQuery(params: PaginationParams): string {
@@ -91,6 +101,38 @@ export class ConfigApiService {
       headers: ConfigApiService.getAuthHeaders(),
     });
     return await ConfigApiService.handleResponse<PaginatedResponse<T>>(response);
+  }
+
+  /**
+   * Load every record of a table by paging through the list endpoint.
+   * Dropdowns used to cap at a single limit:100 page, silently hiding any
+   * record beyond the first 100. The page size matches the old cap; the
+   * loop keeps going until the API says there are no more rows.
+   */
+  async listAll<T>(
+    table: ConfigTable,
+    params: Pick<PaginationParams, 'sort' | 'order' | 'filters'> = {},
+  ): Promise<T[]> {
+    const PAGE_SIZE = 100;
+    const all: T[] = [];
+    let offset = 0;
+    // Upper bound so a misbehaving backend cannot loop forever.
+    const MAX_PAGES = 100;
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const result = await this.list<T>(table, { ...params, limit: PAGE_SIZE, offset });
+      all.push(...result.data);
+      const total = result.meta?.total ?? all.length;
+      if (all.length >= total || result.data.length < PAGE_SIZE) {
+        return all;
+      }
+      offset += PAGE_SIZE;
+    }
+    // We exhausted the page ceiling while the API still reports more rows.
+    // Returning the partial list here silently hid records from every
+    // dropdown, so surface it instead of pretending the load succeeded.
+    throw new Error(
+      `Unable to load all ${table} records: more than ${MAX_PAGES * PAGE_SIZE} rows available.`,
+    );
   }
 
   async getById<T>(

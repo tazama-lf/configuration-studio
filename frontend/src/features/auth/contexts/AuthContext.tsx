@@ -1,5 +1,6 @@
-import React, { useEffect, useState, createContext, useContext } from 'react';
+import React, { useEffect, useState, createContext, useContext, useCallback } from 'react';
 import { authApi, AuthApiService, type User } from '../services/authApi';
+import { registerSessionExpiredHandler } from '../../../utils/common/interceptor';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -40,6 +41,16 @@ const AuthProvider: React.FC<{
 
       if (storedToken && storedUser) {
         try {
+          // An expired token must not count as a session: without this check
+          // the user looked logged in until the first API call failed.
+          const expiry = AuthApiService.getTokenExpiry(storedToken);
+          if (expiry !== null && expiry * 1000 <= Date.now()) {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('user');
+            setLoading(false);
+            return;
+          }
+
           const tokenUserData = AuthApiService.decodeToken(storedToken);
 
           if (tokenUserData) {
@@ -60,6 +71,20 @@ const AuthProvider: React.FC<{
 
     initializeAuth();
   }, []);
+
+  const logout = useCallback((): void => {
+    setUser(null);
+    setIsAuthenticated(false);
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('user');
+  }, []);
+
+  // A 401 anywhere in the app must clear the React session too, not just
+  // localStorage (otherwise protected routes stayed reachable).
+  useEffect(() => {
+    registerSessionExpiredHandler(logout);
+    return () => registerSessionExpiredHandler(undefined);
+  }, [logout]);
 
   const login = async (
     username: string,
@@ -87,13 +112,6 @@ const AuthProvider: React.FC<{
     }
 
     return false;
-  };
-
-  const logout = (): void => {
-    setUser(null);
-    setIsAuthenticated(false);
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('user');
   };
 
   return (

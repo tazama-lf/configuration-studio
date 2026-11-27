@@ -43,8 +43,8 @@ frontend/src/
 │   │   ├── pages/Login.tsx            # Login page (react-hook-form + yup)
 │   │   └── services/authApi.ts        # Auth API client + JWT decoder
 │   ├── config/
-│   │   ├── pages/                     # NetworkMapPage, RulePage, TypologyPage (+ ConfigPages.spec.tsx)
-│   │   ├── components/                # Config editors (NetworkMap, Rule, Typology) (+ ConfigEditors.spec.tsx)
+│   │   ├── pages/                     # NetworkMapPage, RulePage, TypologyPage (specs in __tests__)
+│   │   ├── components/                # Config editors (NetworkMap, Rule, Typology) (specs in __tests__)
 │   │   └── services/configApi.ts      # Config API client (CRUD + pagination)
 │   └── dashboard/
 │       ├── Dashboard.tsx             # Layout shell (AppBar, Drawer, SideNav)
@@ -62,14 +62,6 @@ frontend/src/
 
 ## Quick Start
 
-### Using Workspaces (from root)
-
-```bash
-npm install
-npm run dev:backend    # terminal 1
-npm run dev:frontend   # terminal 2
-```
-
 ### Backend
 
 ```bash
@@ -79,7 +71,7 @@ npm install
 npm run start:dev
 ```
 
-Backend runs on `http://localhost:3015`. Swagger at `http://localhost:3015/api/docs`.
+Backend runs on `http://localhost:3015`. Swagger at `http://localhost:3015/api/docs` (development only — disabled when `NODE_ENV=production`).
 
 ### Frontend
 
@@ -105,9 +97,15 @@ Frontend runs on `http://localhost:5176`.
 | -------- | ------------------------- | ----------------------------------------------------------------------- |
 | `GET`    | `/config/:table`          | List records (paginated: `limit`, `offset`, `sort`, `order`, `filters`) |
 | `GET`    | `/config/:table/:id/:cfg` | Get a single record by id and cfg                                       |
+| `GET`    | `/config/network-map/:cfg` | Get a network map by cfg (single-key table)                            |
 | `POST`   | `/config/:table`          | Create a new record                                                     |
 | `PUT`    | `/config/:table/:id/:cfg` | Update a record by id and cfg                                           |
+| `PUT`    | `/config/network-map/:cfg` | Update a network map by cfg (single-key table)                         |
 | `DELETE` | `/config/:table/:id/:cfg` | Delete a record by id and cfg                                           |
+| `DELETE` | `/config/network-map/:cfg` | Delete a network map by cfg (single-key table)                        |
+| `POST`   | `/config/network-map/:cfg/activate` | Activate a network map                                       |
+| `POST`   | `/config/network-map/:cfg/deactivate` | Deactivate a network map                                   |
+| `POST`   | `/config/network-map/reload` | Reload the active network map                                    |
 
 Where `:table` is one of `network-map`, `rule`, or `typology`.
 
@@ -123,8 +121,10 @@ DELETE /v1/admin/configuration/{table}/{id}/{cfg}
 
 ## Authentication
 
-- **Backend**: Uses `@tazama-lf/auth-lib` for JWT validation and claim checking. The `TazamaAuthGuard` validates the bearer token, checks required claims via `@RequireClaims()` / `@RequireAnyClaims()` decorators, and injects an `AuthenticatedUser` via the `@User()` decorator.
-- **Frontend**: `AuthContext` manages login/logout state. JWT token is stored in `localStorage`. A fetch interceptor (`interceptor.ts`) redirects to `/login` on `401` responses. Token decoding extracts user info (username, email, claims, tenantId, realm roles).
+- **Backend**: Uses `@tazama-lf/auth-lib` for JWT validation and claim checking. The `TazamaAuthGuard` validates the bearer token, checks required claims via `@RequireClaims()` / `@RequireAnyClaims()` decorators, and injects an `AuthenticatedUser` via the `@User()` decorator. `/auth/login` is rate-limited (5 requests/minute per client).
+- **Frontend**: `AuthContext` manages login/logout state. JWT token is stored in `localStorage`. The token's `exp` claim is checked on startup and an expired session is logged out immediately. A fetch interceptor (`interceptor.ts`) clears the session and redirects to `/login` on `401` responses. Token decoding extracts user info (username, email, claims, tenantId, realm roles).
+
+> **Token storage note:** the JWT lives in `localStorage`, which an XSS vulnerability could read. This is a conscious trade-off for the current deployment; a hardened alternative is an httpOnly cookie set by the backend. Track any move to that model as its own change (it requires a backend cookie endpoint and CSRF protection).
 
 ## Frontend Features
 
@@ -156,6 +156,8 @@ DELETE /v1/admin/configuration/{table}/{id}/{cfg}
 | `CORS_ORIGINS`         | Comma-separated allowed browser origins. Unset → only the dev origin (`http://localhost:5176`); set empty → no origins (fail closed). | _(dev origin)_ |
 | `HTTP_TIMEOUT_MS`      | Outbound timeout (ms) for auth-service and admin-service calls. Must be a positive integer; anything else (0, `.5`, `10s`) aborts startup. | `10000` |
 
+> **Production key management:** the `public-key.pem` committed in `backend/` is a development convenience only. In production, mount the key for your environment (secret or volume) and point `CERT_PATH_PUBLIC`/`AUTH_PUBLIC_KEY_PATH` at the mounted path — never trust the repository copy, since a public key in git cannot be rotated per environment.
+
 ### Frontend
 
 | Variable             | Description                              | Default                 |
@@ -170,7 +172,7 @@ DELETE /v1/admin/configuration/{table}/{id}/{cfg}
 ### Backend
 
 - NestJS 11, `@nestjs/axios`, `@nestjs/config`, `@nestjs/swagger`
-- `@tazama-lf/auth-lib` ^2.1.0, `@tazama-lf/frms-coe-lib` 8.3.0
+- `@tazama-lf/auth-lib` 4.0.0, `@tazama-lf/frms-coe-lib` ^8.3.0
 - `jsonwebtoken`, `class-validator`, `class-transformer`
 
 ### Frontend
@@ -183,19 +185,12 @@ DELETE /v1/admin/configuration/{table}/{id}/{cfg}
 
 This project enforces minimum test coverage thresholds across all packages (backend and frontend). Coverage is measured for lines, branches, functions, and statements.
 
-- **Backend**: 147 tests, 85% threshold for all metrics (98.88% statements achieved)
-- **Frontend**: 198 tests, thresholds: 15% lines/statements, 50% functions, 74% branches
-  - Achieved: 88.4% statements, 74.94% branches, 51.05% functions
+- **Backend**: Jest, 248 tests, 100% threshold for all metrics
+- **Frontend**: Jest, 563 tests, 100% threshold for all metrics
 
 ## Running Coverage Locally
 
-### All packages (from root)
-
-```bash
-npm run test:cov
-```
-
-### Backend only
+### Backend
 
 ```bash
 cd backend
@@ -204,7 +199,7 @@ npm run test:cov
 
 Coverage reports are output to `backend/coverage/` in JSON, LCOV, Clover, and text formats.
 
-### Frontend only
+### Frontend
 
 ```bash
 cd frontend
@@ -215,12 +210,12 @@ Coverage reports are output to `frontend/coverage/` in the same formats.
 
 ## Coverage Configuration
 
-| Package  | Tool   | Config Location                                 |
-| -------- | ------ | ----------------------------------------------- |
-| Backend  | Jest   | `backend/package.json` (`jest` key)             |
-| Frontend | Vitest | `frontend/vite.config.ts` (`test.coverage` key) |
+| Package  | Tool   | Config Location                                  |
+| -------- | ------ | ------------------------------------------------ |
+| Backend  | Jest   | `backend/package.json` (`jest` key)              |
+| Frontend | Jest   | `frontend/jest.config.cjs` (`coverageThreshold`)  |
 
-Both are configured with `coverageThreshold` / `thresholds` for all metrics. Tests will fail locally if coverage drops below the threshold. Backend uses 85% for all metrics; frontend uses lower thresholds for functions and branches due to untested UI components.
+Both are configured with 100% thresholds for all metrics (lines, branches, functions, statements). Tests fail locally if coverage drops below the threshold.
 
 ## Linting
 
@@ -232,9 +227,6 @@ cd backend && npm run lint
 
 # Frontend
 cd frontend && npm run lint
-
-# Both (from root, requires npm v7+ workspaces)
-npm run lint
 ```
 
 > **Note**: The GitLab CI lint pipeline (`.gitlab-ci.yml`) was removed because the available CI runners do not have a compatible Node.js/npm environment (shell executor has Node v14/npm v6 which doesn't support workspace commands or lockfileVersion 3). Linting should be run locally before merging.

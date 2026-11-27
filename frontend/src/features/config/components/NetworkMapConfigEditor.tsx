@@ -76,27 +76,28 @@ export default function NetworkMapConfigEditor({
   const [messages, setMessages] = useState<Message[]>([]);
 
   // ── Fetch typologies for dropdown ────────────────────────────────────────
+  const [dropdownError, setDropdownError] = useState<string | null>(null);
   useEffect(() => {
     const fetchTypologies = async () => {
       try {
-        const result = await configApi.list<{
+        // listAll pages through every record instead of capping the
+        // dropdowns at the first 100.
+        const typologies = await configApi.listAll<{
           id: string;
           cfg: string;
           desc?: string;
           rules?: Array<{ id: string; cfg: string }>;
-        }>('typology', {
-          limit: 100,
-          offset: 0,
-        });
-        setTypologyRecords(result.data);
+        }>('typology');
+        setTypologyRecords(typologies);
         // Fetch rule records for description lookup
-        const ruleResult = await configApi.list<{ id: string; cfg: string; desc?: string }>('rule', {
-          limit: 100,
-          offset: 0,
-        });
-        setRuleRecords(ruleResult.data);
-      } catch {
-        // silently fail
+        const rules = await configApi.listAll<{ id: string; cfg: string; desc?: string }>('rule');
+        setRuleRecords(rules);
+        setDropdownError(null);
+      } catch (err) {
+        // A failed fetch used to leave silently empty dropdowns; surface it.
+        setDropdownError(
+          err instanceof Error ? err.message : 'Failed to load typologies/rules',
+        );
       }
     };
     fetchTypologies();
@@ -329,7 +330,8 @@ export default function NetworkMapConfigEditor({
                                 {...params}
                                 label="Typology (id@cfg)"
                                 size="small"
-                                helperText={selectedDesc ?? 'Select a typology — rules auto-load'}
+                                error={dropdownError !== null}
+                                helperText={dropdownError ?? selectedDesc ?? 'Select a typology — rules auto-load'}
                               />
                             );
                           }}
