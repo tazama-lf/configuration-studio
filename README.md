@@ -165,6 +165,28 @@ DELETE /v1/admin/configuration/{table}/{id}/{cfg}
 | `VITE_APP_ENV`       | App environment                          | `development`           |
 | `VITE_ALLOWED_HOSTS` | Comma-separated allowed hosts (or `all`) | _(none)_                |
 
+## Deployment (Docker)
+
+Both images include a `HEALTHCHECK` and report healthy once their service is up
+(backend: `GET /health`; frontend: the SPA shell). Both apps have a
+`.dockerignore` so secrets (`.env`), `node_modules` and test artifacts never
+enter the build context.
+
+### Frontend container
+
+The SPA is served by **pinned `serve@14.2.2`** with security headers
+(Content-Security-Policy, X-Frame-Options, X-Content-Type-Options,
+Referrer-Policy) configured in `frontend/serve.json`. `runtime-config.js` is
+generated at container start from the `VITE_*` environment variables — one
+image serves every environment.
+
+### HTTPS
+
+Certificates are never baked into images. Serve plain HTTP inside the network
+and terminate TLS at your deployment's proxy (nginx, Traefik, Kubernetes
+ingress) in front of both services. Set `TRUST_PROXY` on the backend so
+client IPs and rate limiting see the real requester behind the proxy.
+
 ## Key Dependencies
 
 ### Backend
