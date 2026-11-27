@@ -20,6 +20,8 @@ export E2E_PASSWORD='your-test-password'
 
 The suite fails fast with a clear error when either variable is missing. In CI, provide them as secrets.
 
+> **Login rate limit vs. the E2E suite.** The backend throttles `POST /auth/login` to `LOGIN_RATE_LIMIT` requests (default **5**) per `LOGIN_RATE_TTL_MS` window (default **60000 ms**) per client IP (`backend/src/auth/auth.module.ts`). The E2E suite runs serially from a single IP and each CRUD spec calls `login()` in `beforeEach`, so a full run sends well over 5 logins — past the limit the backend returns **429**, the login form never navigates, and `login()` in `frontend/e2e/helpers.ts` times out after 30s. When targeting an isolated test backend, raise the limit (e.g. `LOGIN_RATE_LIMIT=1000`) or reuse a single authenticated session instead of logging in per test. Leave the production limit unchanged.
+
 ```bash
 # From the frontend directory
 npm run dev

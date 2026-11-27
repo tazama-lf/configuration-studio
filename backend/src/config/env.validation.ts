@@ -1,5 +1,5 @@
 import { plainToClass } from 'class-transformer';
-import { IsEnum, IsNumber, IsString, IsOptional, Matches, validateSync } from 'class-validator';
+import { IsEnum, IsInt, IsString, IsOptional, Matches, Min, validateSync } from 'class-validator';
 
 // A required value must contain at least one non-whitespace character:
 // @IsNotEmpty() alone accepts whitespace-only strings like "   ", which then
@@ -57,12 +57,18 @@ class EnvironmentVariables {
   })
   HTTP_TIMEOUT_MS?: string;
 
+  // Positive integers only: IsNumber()/Min() would accept 0 and negatives, and
+  // class-transformer turns an empty string into 0 — so an empty
+  // LOGIN_RATE_LIMIT= would reject every login and an empty LOGIN_RATE_TTL_MS=
+  // would disable throttling. Omitting them keeps the defaults.
   @IsOptional()
-  @IsNumber()
+  @IsInt()
+  @Min(1)
   LOGIN_RATE_TTL_MS?: number;
 
   @IsOptional()
-  @IsNumber()
+  @IsInt()
+  @Min(1)
   LOGIN_RATE_LIMIT?: number;
 
   /**

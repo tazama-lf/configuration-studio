@@ -151,7 +151,9 @@ export class ConfigProxyService {
    * If the preservation read fails (transient admin-service error) we cannot
    * safely send the PUT — it would drop creDtTm (the very #29 data loss) — so
    * the update is rejected with a retryable 503. A 404 is a confirmed-absent
-   * record (create-style upsert) and proceeds normally.
+   * record (create-style upsert) and proceeds normally. A 403 means the caller
+   * has write but not read permission (issue #41 splits the claims): the write
+   * is authorized, so it proceeds without preservation rather than failing.
    */
   private async preserveOmittedFields(
     table: ConfigTable,
@@ -171,7 +173,13 @@ export class ConfigProxyService {
     // or dropped (store has none) below, so it can never be forged.
     const existing = await this.fetchExistingRecord(table, id, cfg, token, tenantId);
     if (existing === null) {
-      throw new ServiceUnavailableException('Could not read the stored record to preserve its creation timestamp. Please retry.');
+      // Write-only caller (403 on the internal read): the write is authorized,
+      // so proceed without preservation. A supplied creDtTm cannot be verified
+      // against the store, so drop it rather than let the caller forge it.
+      if (body.creDtTm !== undefined) {
+        delete body.creDtTm;
+      }
+      return;
     }
     if (existing && existing.creDtTm !== undefined) {
       body.creDtTm = existing.creDtTm;
@@ -186,7 +194,10 @@ export class ConfigProxyService {
    * Read the stored record so update() can preserve creDtTm. Returns:
    *   - the record object when found
    *   - undefined when the record is confirmed absent (a 404 → upsert path)
-   *   - null when the read failed transiently (caller must not proceed)
+   *   - null when the caller may write but not read the record (403): the
+   *     write is authorized and proceeds without preservation.
+   * A transient read failure (5xx / network) throws a retryable 503 so the
+   * update never wipes the stored creDtTm/name.
    */
   private async fetchExistingRecord(
     table: ConfigTable,
@@ -199,23 +210,35 @@ export class ConfigProxyService {
       const existing = await this.getById(table, id, cfg, token, tenantId);
       return this.isPlainRecord(existing) ? existing : undefined;
     } catch (error) {
-      // AdminServiceClient throws HttpException. A 404 is a confirmed-absent
-      // record (create-style upsert) - proceed without preservation. Any other
-      // deliberate 4xx (401 expired session, 403 permission, 400 bad request)
-      // is the client's real problem and must surface as-is - masking it as a
-      // 503 "please retry" would hide an unrecoverable error. Only 5xx /
-      // connection failures are transient and return null (-> 503).
+      // AdminServiceClient throws HttpException.
       if (error instanceof HttpException) {
         const status = error.getStatus();
+        // Confirmed-absent record: proceed as a create-style upsert.
         if (status === HttpStatus.NOT_FOUND) {
           return undefined;
         }
+        // The caller may write but not read this record (issue #41 separates
+        // the read/write claims). The write is authorized, so it must not fail
+        // on the internal read: signal "cannot read" and let update() continue
+        // without preservation instead of blocking an allowed write.
+        if (status === HttpStatus.FORBIDDEN) {
+          this.logger.warn(
+            `Cannot read existing ${table} ${id}/${cfg} to preserve creDtTm (403) — proceeding without preservation.`,
+          );
+          return null;
+        }
+        // Any other deliberate 4xx (401 expired session, 400 bad request) is
+        // the client's real problem and must surface as-is.
         if (status < HttpStatus.INTERNAL_SERVER_ERROR) {
           throw error;
         }
       }
+      // 5xx / connection failures are transient: reject the update with a
+      // retryable 503 rather than send a PUT that wipes the stored fields.
       this.logger.warn(`Could not read existing ${table} ${id}/${cfg} to preserve creDtTm: ${(error as Error).message}`);
-      return null;
+      throw new ServiceUnavailableException(
+        'Could not read the stored record to preserve its creation timestamp. Please retry.',
+      );
     }
   }
 

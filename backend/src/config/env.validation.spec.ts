@@ -117,6 +117,16 @@ describe('env.validation', () => {
       expect(() => validate({ ...validEnv, LOGIN_RATE_LIMIT: 'many' })).toThrow();
     });
 
+    it('should reject zero or negative login rate-limit knobs at startup', () => {
+      expect(() => validate({ ...validEnv, LOGIN_RATE_LIMIT: '0' })).toThrow(/LOGIN_RATE_LIMIT/);
+      expect(() => validate({ ...validEnv, LOGIN_RATE_LIMIT: '-1' })).toThrow(/LOGIN_RATE_LIMIT/);
+      expect(() => validate({ ...validEnv, LOGIN_RATE_TTL_MS: '0' })).toThrow(/LOGIN_RATE_TTL_MS/);
+    });
+
+    it('should reject a non-integer login rate TTL', () => {
+      expect(() => validate({ ...validEnv, LOGIN_RATE_TTL_MS: '1.5' })).toThrow(/LOGIN_RATE_TTL_MS/);
+    });
+
     it('should accept config with only required fields', () => {
       const result = validate({
         NODE_ENV: 'development',

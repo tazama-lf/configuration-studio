@@ -405,15 +405,44 @@ describe('ConfigProxyService', () => {
       expect(result).toEqual({ updated: true });
     });
 
-    it('rethrows a deliberate 4xx preservation-read failure as-is (not a 503)', async () => {
-      // An expired session (401) or permission error (403) must surface as
-      // itself, not be masked as a 503 "please retry" that can never succeed.
+    it('proceeds with the write when the preservation read is forbidden (write-only caller)', async () => {
+      // Issue #41 separates read and write claims: a caller that may write but
+      // not read the record must not have an authorized update blocked by the
+      // internal preservation read.
       const forbidden = new HttpException({ message: 'forbidden', statusCode: 403 }, 403);
       mockAdminServiceClient.executeHttpRequest.mockImplementation((method: string) =>
         method === 'GET' ? Promise.reject(forbidden) : Promise.resolve({ updated: true }),
       );
 
-      await expect(service.update('network_map', 'ignored-id', '2.0.0', { messages: [] }, 'token', 'tenant-1')).rejects.toBe(forbidden);
+      const result = await service.update('network_map', 'ignored-id', '2.0.0', { messages: [] }, 'token', 'tenant-1');
+
+      expect(result).toEqual({ updated: true });
+      const methods = mockAdminServiceClient.executeHttpRequest.mock.calls.map((c) => c[0]);
+      expect(methods).toEqual(['GET', 'PUT']);
+      expect(sentBody()).not.toHaveProperty('creDtTm');
+    });
+
+    it('drops a caller-supplied creDtTm when the read is forbidden (write-only caller)', async () => {
+      const forbidden = new HttpException({ message: 'forbidden', statusCode: 403 }, 403);
+      mockAdminServiceClient.executeHttpRequest.mockImplementation((method: string) =>
+        method === 'GET' ? Promise.reject(forbidden) : Promise.resolve({}),
+      );
+
+      await service.update('rule', 'rule-1', '1.0.0', { name: 'x', creDtTm: '2020-01-01T00:00:00.000Z' }, 'token', 'tenant-1');
+
+      expect(sentBody()).not.toHaveProperty('creDtTm');
+      expect(sentBody()).toHaveProperty('name', 'x');
+    });
+
+    it('rethrows a 401 preservation-read failure as-is (not a 503)', async () => {
+      // A stale/expired session is unrecoverable for this request and must
+      // surface as itself, not be masked as a retryable 503.
+      const unauthorized = new HttpException({ message: 'unauthorized', statusCode: 401 }, 401);
+      mockAdminServiceClient.executeHttpRequest.mockImplementation((method: string) =>
+        method === 'GET' ? Promise.reject(unauthorized) : Promise.resolve({ updated: true }),
+      );
+
+      await expect(service.update('network_map', 'ignored-id', '2.0.0', { messages: [] }, 'token', 'tenant-1')).rejects.toBe(unauthorized);
       const methods = mockAdminServiceClient.executeHttpRequest.mock.calls.map((c) => c[0]);
       expect(methods).toEqual(['GET']);
     });
